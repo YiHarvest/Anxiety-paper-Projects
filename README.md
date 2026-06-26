@@ -1,15 +1,15 @@
 # 焦虑血液生物标志物二分类预测
 
 基于外周血生物标志物的焦虑二分类预测实验。  
-结局变量：`Anxiety_14` | 随机种子：`random_state=284` | 数据集：481 例（训练 336，测试 145）
+结局变量：`Anxiety_14` | 随机种子：`random_state=42` | 数据集：481 例（训练 336，测试 145）
 
 ## 项目结构
 
 ```
 D:\sleep\AnxietyProjects\
 ├── dataset\dataset\              # 原始数据
-│   ├── anxiety_bio15_seed284_train_sorted_by_difficulty.csv
-│   └── anxiety_bio15_seed284_test_sorted_by_difficulty.csv
+│   ├── anxiety_bio15_train.csv
+│   └── anxiety_bio15_test.csv
 ├── pyproject.toml                # 依赖 + 阿里云镜像
 ├── step2_preprocess_abis.py      # Step 2：预处理 + ABIS 计算
 ├── step3_single_six_models.py    # Step 3：单一指标 + 六指标模型
@@ -90,21 +90,10 @@ uv run python step8_calibration_dca_sensitivity.py
 ## 配置
 
 - **结局变量**：`Anxiety_14`（二分类，1=焦虑阳性）
-- **随机种子**：`random_state=284`
+- **随机种子**：`random_state=42`
 - **PyPI 镜像**：阿里云 `mirrors.aliyun.com/pypi/simple/`
 - **六项原始血液指标**：IL6、IL10、TNFalpha、CRP、ACTH、CORT
 - **九项比值指标**：IL6/IL10、TNFalpha/IL10、CRP/IL10、CORT/ACTH、CORT/IL6、CORT/CRP、IL6/TNFalpha、CRP/IL6、ACTH/IL6
 - **排他特征**：CaseNumber、Depression_18、Chronic_pain（不纳入模型）
 - 所有脚本必须从项目根目录 `D:\sleep\AnxietyProjects` 运行
 
-## 关键结果（random_state=284）
-
-| 模型 | ROC-AUC 95% CI | PR-AUC | 说明 |
-|------|---------------|--------|------|
-| Six_RF | 0.619 [0.520, 0.706] | 0.497 | 最佳六指标模型 |
-| Six_XGBoost | 0.598 [0.501, 0.686] | 0.502 | 最佳校准 |
-| Best Single (CRP) | 0.567 [0.463, 0.662] | 0.472 | 最佳单一指标 |
-| Integrated_RF | 0.577 | 0.481 | 整合模型最优 |
-| ABIS LR | 0.483 [0.378, 0.582] | 0.459 | 知识驱动指标 |
-
-**核心发现**：外周血生物标志物对焦虑分类具有有限预测能力（最优 AUC≈0.62）。比值指标和 ABIS 未超越六项原始指标模型。CORT、IL10、TNFalpha 是最重要的生物标志物。
