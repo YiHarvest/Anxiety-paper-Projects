@@ -97,14 +97,4 @@ uv run python step8_calibration_dca_sensitivity.py
 - **排他特征**：CaseNumber、Depression_18、Chronic_pain（不纳入模型）
 - 所有脚本必须从项目根目录 `D:\sleep\AnxietyProjects` 运行
 
-## 关键结果（random_state=284）
 
-| 模型 | ROC-AUC 95% CI | PR-AUC | 说明 |
-|------|---------------|--------|------|
-| Six_RF | 0.619 [0.520, 0.706] | 0.497 | 最佳六指标模型 |
-| Six_XGBoost | 0.598 [0.501, 0.686] | 0.502 | 最佳校准 |
-| Best Single (CRP) | 0.567 [0.463, 0.662] | 0.472 | 最佳单一指标 |
-| Integrated_RF | 0.577 | 0.481 | 整合模型最优 |
-| ABIS LR | 0.483 [0.378, 0.582] | 0.459 | 知识驱动指标 |
-
-**核心发现**：外周血生物标志物对焦虑分类具有有限预测能力。比值指标和 ABIS 未超越六项原始指标模型。CORT、IL10、TNFalpha 是最重要的生物标志物。
