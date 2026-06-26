@@ -8,8 +8,8 @@
 ```
 D:\sleep\AnxietyProjects\
 ├── dataset\dataset\              # 原始数据
-│   ├── anxiety_bio15_seed284_train_sorted_by_difficulty.csv
-│   └── anxiety_bio15_seed284_test_sorted_by_difficulty.csv
+│   ├── anxiety_bio15_train.csv
+│   └── anxiety_bio15_test.csv
 ├── pyproject.toml                # 依赖 + 阿里云镜像
 ├── step2_preprocess_abis.py      # Step 2：预处理 + ABIS 计算
 ├── step3_single_six_models.py    # Step 3：单一指标 + 六指标模型
@@ -90,7 +90,7 @@ uv run python step8_calibration_dca_sensitivity.py
 ## 配置
 
 - **结局变量**：`Anxiety_14`（二分类，1=焦虑阳性）
-- **随机种子**：`random_state=284`
+- **随机种子**：`random_state=42`
 - **PyPI 镜像**：阿里云 `mirrors.aliyun.com/pypi/simple/`
 - **六项原始血液指标**：IL6、IL10、TNFalpha、CRP、ACTH、CORT
 - **九项比值指标**：IL6/IL10、TNFalpha/IL10、CRP/IL10、CORT/ACTH、CORT/IL6、CORT/CRP、IL6/TNFalpha、CRP/IL6、ACTH/IL6
@@ -107,4 +107,4 @@ uv run python step8_calibration_dca_sensitivity.py
 | Integrated_RF | 0.577 | 0.481 | 整合模型最优 |
 | ABIS LR | 0.483 [0.378, 0.582] | 0.459 | 知识驱动指标 |
 
-**核心发现**：外周血生物标志物对焦虑分类具有有限预测能力（最优 AUC≈0.62）。比值指标和 ABIS 未超越六项原始指标模型。CORT、IL10、TNFalpha 是最重要的生物标志物。
+**核心发现**：外周血生物标志物对焦虑分类具有有限预测能力。比值指标和 ABIS 未超越六项原始指标模型。CORT、IL10、TNFalpha 是最重要的生物标志物。
