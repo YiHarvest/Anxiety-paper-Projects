@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "skills": {
+    "paper-figure": {
+      "source": "wanshuiyin/Auto-claude-code-research-in-sleep",
+      "ref": "main",
+      "sourceType": "github",
+      "skillPath": "skills/paper-figure/SKILL.md",
+      "computedHash": "757ad8a7116d2aa6c35e2d43b0a88a973d52503b15b7ec05b6823a9989812a79"
+    },
+    "scientific-visualization": {
+      "source": "davila7/claude-code-templates",
+      "ref": "main",
+      "sourceType": "github",
+      "skillPath": "cli-tool/components/skills/scientific/scientific-visualization/SKILL.md",
+      "computedHash": "804c900914a71b68abd8a9c047be13937c35ef2a046aaaa782e0a325eef49339"
+    }
+  }
+}

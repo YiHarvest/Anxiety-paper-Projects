@@ -3,7 +3,6 @@ Step 6: Model interpretation — built-in importance, permutation importance,
 SHAP analysis, and key biomarker summary for the top-performing models.
 """
 
-import sys
 import warnings
 import pickle
 from pathlib import Path
@@ -12,6 +11,7 @@ import numpy as np
 import pandas as pd
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
@@ -19,12 +19,14 @@ from sklearn.inspection import permutation_importance
 
 try:
     import xgboost as xgb
+
     HAS_XGBOOST = True
 except ImportError:
     HAS_XGBOOST = False
 
 try:
     import shap
+
     HAS_SHAP = True
 except ImportError:
     HAS_SHAP = False
@@ -34,37 +36,86 @@ warnings.filterwarnings("ignore")
 # =============================================================================
 # Paths
 # =============================================================================
-PROJECT = Path(r"D:\sleep\AnxietyProjects")
+PROJECT = Path(__file__).resolve().parent
 TRAIN_PATH = PROJECT / "output" / "step2_preprocess_abis" / "train_with_abis_model.csv"
 TEST_PATH = PROJECT / "output" / "step2_preprocess_abis" / "test_with_abis_model.csv"
 OUT_DIR = PROJECT / "output" / "step6_model_interpretation"
 
 # Model paths: (short_name, path, feature_group, feature_list)
 MODEL_SPECS = [
-    ("Six_XGBoost",
-     PROJECT / "output" / "step3_single_six_models" / "model_six_xgboost.pkl",
-     "Six",
-     ["IL6", "IL10", "TNFalpha", "CRP", "ACTH", "CORT"]),
-    ("Six_RF",
-     PROJECT / "output" / "step3_single_six_models" / "model_six_random_forest.pkl",
-     "Six",
-     ["IL6", "IL10", "TNFalpha", "CRP", "ACTH", "CORT"]),
-    ("Integrated_XGBoost",
-     PROJECT / "output" / "step4_ratio_integrated_models" / "model_integrated_xgboost.pkl",
-     "Integrated",
-     ["IL6", "IL10", "TNFalpha", "CRP", "ACTH", "CORT",
-      "IL6/IL10", "TNFalpha/IL10", "CRP/IL10", "CORT/ACTH",
-      "CORT/IL6", "CORT/CRP", "IL6/TNFalpha", "CRP/IL6", "ACTH/IL6"]),
-    ("Integrated_RF",
-     PROJECT / "output" / "step4_ratio_integrated_models" / "model_integrated_rf.pkl",
-     "Integrated",
-     ["IL6", "IL10", "TNFalpha", "CRP", "ACTH", "CORT",
-      "IL6/IL10", "TNFalpha/IL10", "CRP/IL10", "CORT/ACTH",
-      "CORT/IL6", "CORT/CRP", "IL6/TNFalpha", "CRP/IL6", "ACTH/IL6"]),
+    (
+        "Six_XGBoost",
+        PROJECT / "output" / "step3_single_six_models" / "model_six_xgboost.pkl",
+        "Six",
+        ["IL6", "IL10", "TNFalpha", "CRP", "ACTH", "CORT"],
+    ),
+    (
+        "Six_RF",
+        PROJECT / "output" / "step3_single_six_models" / "model_six_random_forest.pkl",
+        "Six",
+        ["IL6", "IL10", "TNFalpha", "CRP", "ACTH", "CORT"],
+    ),
+    (
+        "Integrated_XGBoost",
+        PROJECT
+        / "output"
+        / "step4_ratio_integrated_models"
+        / "model_integrated_xgboost.pkl",
+        "Integrated",
+        [
+            "IL6",
+            "IL10",
+            "TNFalpha",
+            "CRP",
+            "ACTH",
+            "CORT",
+            "IL6/IL10",
+            "TNFalpha/IL10",
+            "CRP/IL10",
+            "CORT/ACTH",
+            "CORT/IL6",
+            "CORT/CRP",
+            "IL6/TNFalpha",
+            "CRP/IL6",
+            "ACTH/IL6",
+        ],
+    ),
+    (
+        "Integrated_RF",
+        PROJECT
+        / "output"
+        / "step4_ratio_integrated_models"
+        / "model_integrated_rf.pkl",
+        "Integrated",
+        [
+            "IL6",
+            "IL10",
+            "TNFalpha",
+            "CRP",
+            "ACTH",
+            "CORT",
+            "IL6/IL10",
+            "TNFalpha/IL10",
+            "CRP/IL10",
+            "CORT/ACTH",
+            "CORT/IL6",
+            "CORT/CRP",
+            "IL6/TNFalpha",
+            "CRP/IL6",
+            "ACTH/IL6",
+        ],
+    ),
 ]
 
-STEP5_TAB10 = PROJECT / "output" / "step5_abis_bootstrap_compare" / "table10_core_model_comparison.csv"
-STEP5_TAB11 = PROJECT / "output" / "step5_abis_bootstrap_compare" / "table11_bootstrap_auc_ci.csv"
+STEP5_TAB10 = (
+    PROJECT
+    / "output"
+    / "step5_abis_bootstrap_compare"
+    / "table10_core_model_comparison.csv"
+)
+STEP5_TAB11 = (
+    PROJECT / "output" / "step5_abis_bootstrap_compare" / "table11_bootstrap_auc_ci.csv"
+)
 
 OUTCOME = "Anxiety_14"
 RANDOM_STATE = 284
@@ -82,6 +133,7 @@ BIOMARKER_NOTES = {
 # =============================================================================
 # Helpers
 # =============================================================================
+
 
 def load_model(pkl_path, name):
     """Load model dict from pkl, return (model_obj, threshold) or (None, None)."""
@@ -105,13 +157,15 @@ def get_builtin_importance(model, features, model_name, feat_group):
         return rows
     imp = model.feature_importances_
     for i, feat in enumerate(features):
-        rows.append({
-            "Model": model_name,
-            "Feature_group": feat_group,
-            "Feature": feat,
-            "Importance": imp[i],
-            "Rank": 0,  # filled after sorting
-        })
+        rows.append(
+            {
+                "Model": model_name,
+                "Feature_group": feat_group,
+                "Feature": feat,
+                "Importance": imp[i],
+                "Rank": 0,  # filled after sorting
+            }
+        )
     # Rank descending
     sorted_rows = sorted(rows, key=lambda x: x["Importance"], reverse=True)
     for rank, r in enumerate(sorted_rows, 1):
@@ -126,8 +180,13 @@ def draw_importance_bar(rows, title, out_png, top_n=None):
         df = df.tail(top_n)
     fig, ax = plt.subplots(figsize=(8, max(4, len(df) * 0.35)))
     colors = ["#1f77b4" if v > 0 else "#d62728" for v in df["Importance"]]
-    ax.barh(range(len(df)), df["Importance"].values, color=colors,
-            edgecolor="k", linewidth=0.3)
+    ax.barh(
+        range(len(df)),
+        df["Importance"].values,
+        color=colors,
+        edgecolor="k",
+        linewidth=0.3,
+    )
     ax.set_yticks(range(len(df)))
     ax.set_yticklabels(df["Feature"].values, fontsize=9)
     ax.set_xlabel("Importance", fontsize=12)
@@ -143,19 +202,26 @@ def draw_importance_bar(rows, title, out_png, top_n=None):
 def do_permutation_importance(model, X, y, model_name, feat_group, features):
     """Permutation importance on test set, n_repeats=1000."""
     pi = permutation_importance(
-        model, X, y, scoring="roc_auc", n_repeats=1000,
-        random_state=RANDOM_STATE, n_jobs=-1,
+        model,
+        X,
+        y,
+        scoring="roc_auc",
+        n_repeats=1000,
+        random_state=RANDOM_STATE,
+        n_jobs=-1,
     )
     rows = []
     for i, feat in enumerate(features):
-        rows.append({
-            "Model": model_name,
-            "Feature_group": feat_group,
-            "Feature": feat,
-            "Importance_mean": pi.importances_mean[i],
-            "Importance_std": pi.importances_std[i],
-            "Rank": 0,
-        })
+        rows.append(
+            {
+                "Model": model_name,
+                "Feature_group": feat_group,
+                "Feature": feat,
+                "Importance_mean": pi.importances_mean[i],
+                "Importance_std": pi.importances_std[i],
+                "Rank": 0,
+            }
+        )
     # Rank by Importance_mean descending
     sorted_rows = sorted(rows, key=lambda x: x["Importance_mean"], reverse=True)
     for rank, r in enumerate(sorted_rows, 1):
@@ -169,10 +235,15 @@ def draw_permutation_bar(rows, title, out_png):
     df = df.sort_values("Importance_mean", ascending=True)
     fig, ax = plt.subplots(figsize=(8, max(4, len(df) * 0.35)))
     y_pos = range(len(df))
-    ax.barh(y_pos, df["Importance_mean"].values,
-            xerr=df["Importance_std"].values,
-            color="#1f77b4", edgecolor="k", linewidth=0.3,
-            error_kw=dict(lw=0.8, capsize=2))
+    ax.barh(
+        y_pos,
+        df["Importance_mean"].values,
+        xerr=df["Importance_std"].values,
+        color="#1f77b4",
+        edgecolor="k",
+        linewidth=0.3,
+        error_kw=dict(lw=0.8, capsize=2),
+    )
     ax.set_yticks(y_pos)
     ax.set_yticklabels(df["Feature"].values, fontsize=9)
     ax.set_xlabel("Permutation Importance (ROC_AUC drop)", fontsize=11)
@@ -254,21 +325,25 @@ print("Saved table12_builtin_feature_importance.csv")
 # =============================================================================
 print("\n=== Built-in Importance Plots ===")
 builtin_fig_map = {
-    "Six_XGBoost":        ("Built-in Importance — Six_XGBoost",
-                           "figure10_six_xgboost_builtin_importance"),
-    "Six_RF":             ("Built-in Importance — Six_RF",
-                           "figure11_six_rf_builtin_importance"),
-    "Integrated_XGBoost": ("Built-in Importance — Integrated_XGBoost",
-                           "figure12_integrated_xgboost_builtin_importance"),
-    "Integrated_RF":      ("Built-in Importance — Integrated_RF",
-                           "figure13_integrated_rf_builtin_importance"),
+    "Six_XGBoost": (
+        "Built-in Importance — Six_XGBoost",
+        "figure10_six_xgboost_builtin_importance",
+    ),
+    "Six_RF": ("Built-in Importance — Six_RF", "figure11_six_rf_builtin_importance"),
+    "Integrated_XGBoost": (
+        "Built-in Importance — Integrated_XGBoost",
+        "figure12_integrated_xgboost_builtin_importance",
+    ),
+    "Integrated_RF": (
+        "Built-in Importance — Integrated_RF",
+        "figure13_integrated_rf_builtin_importance",
+    ),
 }
 for name, (title, fname) in builtin_fig_map.items():
     rows = [r for r in all_builtin if r["Model"] == name]
     if not rows:
         continue
-    draw_importance_bar(rows, title,
-                        OUT_DIR / f"{fname}.png")
+    draw_importance_bar(rows, title, OUT_DIR / f"{fname}.png")
     print(f"  Saved {fname}.png")
 
 # =============================================================================
@@ -280,8 +355,9 @@ all_permutation = []
 for name, (model, thresh, feat_group, features) in loaded_models.items():
     print(f"  Computing for {name}...")
     X_test_sub = test_df[features].copy()
-    rows = do_permutation_importance(model, X_test_sub, y_test,
-                                     name, feat_group, features)
+    rows = do_permutation_importance(
+        model, X_test_sub, y_test, name, feat_group, features
+    )
     all_permutation.extend(rows)
     top3 = rows[:3]
     print(f"    Top3: {[(r['Feature'], round(r['Importance_mean'],4)) for r in top3]}")
@@ -295,21 +371,28 @@ print("Saved table13_permutation_importance.csv")
 # =============================================================================
 print("\n=== Permutation Importance Plots ===")
 perm_fig_map = {
-    "Six_XGBoost":        ("Permutation Importance — Six_XGBoost",
-                           "figure14_six_xgboost_permutation_importance"),
-    "Six_RF":             ("Permutation Importance — Six_RF",
-                           "figure15_six_rf_permutation_importance"),
-    "Integrated_XGBoost": ("Permutation Importance — Integrated_XGBoost",
-                           "figure16_integrated_xgboost_permutation_importance"),
-    "Integrated_RF":      ("Permutation Importance — Integrated_RF",
-                           "figure17_integrated_rf_permutation_importance"),
+    "Six_XGBoost": (
+        "Permutation Importance — Six_XGBoost",
+        "figure14_six_xgboost_permutation_importance",
+    ),
+    "Six_RF": (
+        "Permutation Importance — Six_RF",
+        "figure15_six_rf_permutation_importance",
+    ),
+    "Integrated_XGBoost": (
+        "Permutation Importance — Integrated_XGBoost",
+        "figure16_integrated_xgboost_permutation_importance",
+    ),
+    "Integrated_RF": (
+        "Permutation Importance — Integrated_RF",
+        "figure17_integrated_rf_permutation_importance",
+    ),
 }
 for name, (title, fname) in perm_fig_map.items():
     rows = [r for r in all_permutation if r["Model"] == name]
     if not rows:
         continue
-    draw_permutation_bar(rows, title,
-                         OUT_DIR / f"{fname}.png")
+    draw_permutation_bar(rows, title, OUT_DIR / f"{fname}.png")
     print(f"  Saved {fname}.png")
 
 # =============================================================================
@@ -319,14 +402,24 @@ print("\n=== SHAP Analysis ===")
 shap_success = False
 all_shap = []
 
+# Store Six_XGBoost SHAP data for dependence and interaction plots
+six_xgboost_shap_data = {}
+
 if HAS_SHAP:
-    shap_targets = {k: v for k, v in loaded_models.items()
-                    if k in ("Six_XGBoost", "Integrated_XGBoost")}
+    shap_targets = {
+        k: v
+        for k, v in loaded_models.items()
+        if k in ("Six_XGBoost", "Integrated_XGBoost")
+    }
     shap_fig_map = {
-        "Six_XGBoost":        ("figure18_six_xgboost_shap_bar",
-                               "figure19_six_xgboost_shap_summary"),
-        "Integrated_XGBoost": ("figure20_integrated_xgboost_shap_bar",
-                               "figure21_integrated_xgboost_shap_summary"),
+        "Six_XGBoost": (
+            "figure18_six_xgboost_shap_bar",
+            "figure19_six_xgboost_shap_summary",
+        ),
+        "Integrated_XGBoost": (
+            "figure20_integrated_xgboost_shap_bar",
+            "figure21_integrated_xgboost_shap_summary",
+        ),
     }
 
     for name, (model, thresh, feat_group, features) in shap_targets.items():
@@ -339,14 +432,26 @@ if HAS_SHAP:
             explainer = shap.TreeExplainer(model)
             shap_values = explainer.shap_values(X_test_sub)
 
+            # Handle different SHAP versions: if list, take shap_values[1]
+            if isinstance(shap_values, list):
+                shap_values_to_use = shap_values[1]
+                print("    SHAP values is a list, using shap_values[1]")
+            else:
+                shap_values_to_use = shap_values
+
             # Mean absolute SHAP
-            mean_abs = np.abs(shap_values).mean(axis=0)
+            mean_abs = np.abs(shap_values_to_use).mean(axis=0)
             rows = []
             for i, feat in enumerate(features):
-                rows.append({
-                    "Model": name, "Feature_group": feat_group,
-                    "Feature": feat, "Mean_abs_SHAP": mean_abs[i], "Rank": 0,
-                })
+                rows.append(
+                    {
+                        "Model": name,
+                        "Feature_group": feat_group,
+                        "Feature": feat,
+                        "Mean_abs_SHAP": mean_abs[i],
+                        "Rank": 0,
+                    }
+                )
             sorted_rows = sorted(rows, key=lambda x: x["Mean_abs_SHAP"], reverse=True)
             for rank, r in enumerate(sorted_rows, 1):
                 r["Rank"] = rank
@@ -354,9 +459,16 @@ if HAS_SHAP:
 
             # Bar plot
             fig, ax = plt.subplots(figsize=(8, max(4, len(features) * 0.35)))
-            df_bar = pd.DataFrame(sorted_rows).sort_values("Mean_abs_SHAP", ascending=True)
-            ax.barh(range(len(df_bar)), df_bar["Mean_abs_SHAP"].values,
-                    color="#1f77b4", edgecolor="k", linewidth=0.3)
+            df_bar = pd.DataFrame(sorted_rows).sort_values(
+                "Mean_abs_SHAP", ascending=True
+            )
+            ax.barh(
+                range(len(df_bar)),
+                df_bar["Mean_abs_SHAP"].values,
+                color="#1f77b4",
+                edgecolor="k",
+                linewidth=0.3,
+            )
             ax.set_yticks(range(len(df_bar)))
             ax.set_yticklabels(df_bar["Feature"].values, fontsize=9)
             ax.set_xlabel("Mean |SHAP|", fontsize=12)
@@ -372,12 +484,24 @@ if HAS_SHAP:
 
             # Summary plot
             fig, ax = plt.subplots(figsize=(10, max(4, len(features) * 0.35)))
-            shap.summary_plot(shap_values, X_test_sub, feature_names=features,
-                              show=False)
+            shap.summary_plot(
+                shap_values_to_use, X_test_sub, feature_names=features, show=False
+            )
             sum_fname = shap_fig_map[name][1]
             fig.savefig(OUT_DIR / f"{sum_fname}.png", dpi=300, bbox_inches="tight")
             plt.close("all")
             print(f"    Saved {sum_fname}.png")
+
+            # Save Six_XGBoost data for dependence and interaction plots
+            if name == "Six_XGBoost":
+                six_xgboost_shap_data = {
+                    "model": model,
+                    "explainer": explainer,
+                    "shap_values": shap_values_to_use,
+                    "X_test_sub": X_test_sub,
+                    "features": features,
+                    "sorted_rows": sorted_rows,
+                }
 
             shap_success = True
         except Exception as e:
@@ -391,16 +515,188 @@ if all_shap:
     print("Saved table14_shap_importance.csv")
 
 # =============================================================================
+# 7.5. SHAP Dependence Plots (Six_XGBoost only)
+# =============================================================================
+print("\n=== SHAP Dependence Plots (Six_XGBoost) ===")
+
+if six_xgboost_shap_data and HAS_SHAP:
+    try:
+        model = six_xgboost_shap_data["model"]
+        shap_values = six_xgboost_shap_data["shap_values"]
+        X_test_sub = six_xgboost_shap_data["X_test_sub"]
+        features = six_xgboost_shap_data["features"]
+        sorted_rows = six_xgboost_shap_data["sorted_rows"]
+
+        # Select all blood features by mean(|SHAP|) ranking
+        dependence_features = [r["Feature"] for r in sorted_rows]
+
+        print(
+            f"  Generating dependence plots for {len(dependence_features)} features..."
+        )
+
+        for feat in dependence_features:
+            feat_idx = features.index(feat)
+            fig, ax = plt.subplots(figsize=(8, 6))
+
+            # Create dependence plot
+            shap.dependence_plot(
+                feat_idx,
+                shap_values,
+                X_test_sub,
+                feature_names=features,
+                show=False,
+                ax=ax,
+            )
+
+            ax.set_title(
+                f"SHAP Dependence Plot — Six_XGBoost — {feat}",
+                fontsize=13,
+                fontweight="bold",
+            )
+            ax.tick_params(labelsize=9)
+
+            fig.tight_layout()
+            fname = f"figure22_six_xgboost_shap_dependence_{feat}.png"
+            fig.savefig(OUT_DIR / fname, dpi=300, bbox_inches="tight")
+            plt.close(fig)
+            print(f"    Saved {fname}")
+
+    except Exception as e:
+        print(f"  WARNING: SHAP Dependence Plots failed: {e}")
+else:
+    print("  Skipped (Six_XGBoost SHAP data not available or SHAP not installed)")
+
+# =============================================================================
+# 7.6. SHAP Interaction Analysis (Six_XGBoost only)
+# =============================================================================
+print("\n=== SHAP Interaction Analysis (Six_XGBoost) ===")
+
+if six_xgboost_shap_data and HAS_SHAP:
+    try:
+        model = six_xgboost_shap_data["model"]
+        X_test_sub = six_xgboost_shap_data["X_test_sub"]
+        features = six_xgboost_shap_data["features"]
+
+        print("  Computing SHAP interaction values...")
+        print(f"  This may take a while for {len(features)} features...")
+
+        # Compute SHAP interaction values
+        explainer = shap.TreeExplainer(model)
+        shap_interaction = explainer.shap_interaction_values(X_test_sub)
+
+        # Handle different SHAP versions: if list, take shap_interaction[1]
+        if isinstance(shap_interaction, list):
+            shap_interaction = shap_interaction[1]
+            print("    SHAP interaction values is a list, using shap_interaction[1]")
+
+        # Compute mean absolute SHAP interaction values for each pair
+        # Shape: (n_samples, n_features, n_features)
+        mean_abs_interaction = np.abs(shap_interaction).mean(axis=0)
+
+        # Build interaction table
+        interaction_rows = []
+        n_features = len(features)
+        for i in range(n_features):
+            for j in range(i + 1, n_features):  # Only upper triangle, avoid duplicates
+                interaction_value = mean_abs_interaction[i, j]
+                interaction_rows.append(
+                    {
+                        "Feature_1": features[i],
+                        "Feature_2": features[j],
+                        "Mean_abs_interaction": interaction_value,
+                    }
+                )
+
+        # Sort by interaction strength and add rank
+        interaction_rows = sorted(
+            interaction_rows, key=lambda x: x["Mean_abs_interaction"], reverse=True
+        )
+        for rank, r in enumerate(interaction_rows, 1):
+            r["Rank"] = rank
+
+        # Save interaction table
+        tab14b = pd.DataFrame(interaction_rows)
+        tab14b.to_csv(
+            OUT_DIR / "table14b_six_xgboost_shap_interaction.csv", index=False
+        )
+        print("  Saved table14b_six_xgboost_shap_interaction.csv")
+
+        # Create interaction heatmap
+        fig, ax = plt.subplots(figsize=(10, 8))
+        im = ax.imshow(mean_abs_interaction, cmap="YlOrRd", aspect="auto")
+
+        # Add colorbar
+        cbar = ax.figure.colorbar(im, ax=ax)
+        cbar.ax.set_ylabel("Mean |SHAP Interaction|", fontsize=11)
+
+        # Set ticks and labels
+        ax.set_xticks(range(n_features))
+        ax.set_yticks(range(n_features))
+        ax.set_xticklabels(features, fontsize=9, rotation=45, ha="right")
+        ax.set_yticklabels(features, fontsize=9)
+
+        ax.set_title(
+            "SHAP Interaction Heatmap — Six_XGBoost", fontsize=13, fontweight="bold"
+        )
+        fig.tight_layout()
+        fig.savefig(
+            OUT_DIR / "figure23_six_xgboost_shap_interaction_heatmap.png",
+            dpi=300,
+            bbox_inches="tight",
+        )
+        plt.close(fig)
+        print("  Saved figure23_six_xgboost_shap_interaction_heatmap.png")
+
+        # Create Top 5 interaction bar plot
+        top5_interactions = interaction_rows[:5]
+        labels = [f"{r['Feature_1']} × {r['Feature_2']}" for r in top5_interactions]
+        values = [r["Mean_abs_interaction"] for r in top5_interactions]
+
+        fig, ax = plt.subplots(figsize=(10, 5))
+        y_pos = range(len(labels))
+        ax.barh(y_pos, values, color="#1f77b4", edgecolor="k", linewidth=0.3)
+        ax.set_yticks(y_pos)
+        ax.set_yticklabels(labels, fontsize=10)
+        ax.set_xlabel("Mean |SHAP Interaction|", fontsize=12)
+        ax.set_title(
+            "Top 5 SHAP Interactions — Six_XGBoost", fontsize=13, fontweight="bold"
+        )
+        ax.invert_yaxis()  # Highest at top
+
+        for spine in ax.spines.values():
+            spine.set_linewidth(0.5)
+        ax.tick_params(labelsize=9)
+        fig.tight_layout()
+        fig.savefig(
+            OUT_DIR / "figure24_six_xgboost_top5_shap_interactions.png",
+            dpi=300,
+            bbox_inches="tight",
+        )
+        plt.close(fig)
+        print("  Saved figure24_six_xgboost_top5_shap_interactions.png")
+
+    except Exception as e:
+        print(f"  WARNING: SHAP Interaction Analysis failed: {e}")
+else:
+    print("  Skipped (Six_XGBoost SHAP data not available or SHAP not installed)")
+
+# =============================================================================
 # 8. Key biomarker summary table (Six_XGBoost)
 # =============================================================================
 print("\n=== Key Biomarker Summary (Six_XGBoost) ===")
 
 # Collect ranks for Six_XGBoost
-builtin_six = {r["Feature"]: r["Rank"] for r in all_builtin if r["Model"] == "Six_XGBoost"}
-perm_six = {r["Feature"]: r["Rank"] for r in all_permutation if r["Model"] == "Six_XGBoost"}
+builtin_six = {
+    r["Feature"]: r["Rank"] for r in all_builtin if r["Model"] == "Six_XGBoost"
+}
+perm_six = {
+    r["Feature"]: r["Rank"] for r in all_permutation if r["Model"] == "Six_XGBoost"
+}
 shap_six = {}
 if all_shap:
-    shap_six = {r["Feature"]: r["Rank"] for r in all_shap if r["Model"] == "Six_XGBoost"}
+    shap_six = {
+        r["Feature"]: r["Rank"] for r in all_shap if r["Model"] == "Six_XGBoost"
+    }
 
 key_rows = []
 for feat in ["IL6", "IL10", "TNFalpha", "CRP", "ACTH", "CORT"]:
@@ -409,14 +705,16 @@ for feat in ["IL6", "IL10", "TNFalpha", "CRP", "ACTH", "CORT"]:
     s_rank = shap_six.get(feat, np.nan)
     ranks = [b for b in [b_rank, p_rank, s_rank] if not np.isnan(b)]
     avg_rank = np.mean(ranks) if ranks else np.nan
-    key_rows.append({
-        "Feature": feat,
-        "Builtin_rank": b_rank,
-        "Permutation_rank": p_rank,
-        "SHAP_rank": s_rank,
-        "Average_rank": avg_rank,
-        "Interpretation_note": BIOMARKER_NOTES.get(feat, ""),
-    })
+    key_rows.append(
+        {
+            "Feature": feat,
+            "Builtin_rank": b_rank,
+            "Permutation_rank": p_rank,
+            "SHAP_rank": s_rank,
+            "Average_rank": avg_rank,
+            "Interpretation_note": BIOMARKER_NOTES.get(feat, ""),
+        }
+    )
 
 tab15 = pd.DataFrame(key_rows).sort_values("Average_rank", ascending=True)
 tab15.to_csv(OUT_DIR / "table15_key_biomarker_summary.csv", index=False)
@@ -428,25 +726,40 @@ print("Saved table15_key_biomarker_summary.csv")
 # Top 3 variables by permutation importance for Six_XGBoost
 six_perm = [r for r in all_permutation if r["Model"] == "Six_XGBoost"]
 top3 = six_perm[:3] if len(six_perm) >= 3 else six_perm
-top3_str = ", ".join([f"{r['Feature']} (mean drop={r['Importance_mean']:.4f})" for r in top3])
+top3_str = ", ".join(
+    [f"{r['Feature']} (mean drop={r['Importance_mean']:.4f})" for r in top3]
+)
 
 # Check consistency between RF and XGBoost top variables
 six_rf_perm = [r for r in all_permutation if r["Model"] == "Six_RF"]
 xgb_top_feats = set(r["Feature"] for r in six_perm[:3])
 rf_top_feats = set(r["Feature"] for r in six_rf_perm[:3])
 overlap = xgb_top_feats & rf_top_feats
-consistency_note = (f"The top variables are {'consistent' if len(overlap) >= 2 else 'not fully consistent'} "
-                    f"between RF and XGBoost (overlap: {overlap}).")
+consistency_note = (
+    f"The top variables are {'consistent' if len(overlap) >= 2 else 'not fully consistent'} "
+    f"between RF and XGBoost (overlap: {overlap})."
+)
 
 # Ratio contribution in Integrated models
-integrated_features = ["IL6/IL10", "TNFalpha/IL10", "CRP/IL10", "CORT/ACTH",
-                       "CORT/IL6", "CORT/CRP", "IL6/TNFalpha", "CRP/IL6", "ACTH/IL6"]
+integrated_features = [
+    "IL6/IL10",
+    "TNFalpha/IL10",
+    "CRP/IL10",
+    "CORT/ACTH",
+    "CORT/IL6",
+    "CORT/CRP",
+    "IL6/TNFalpha",
+    "CRP/IL6",
+    "ACTH/IL6",
+]
 integ_perm = [r for r in all_permutation if r["Model"] == "Integrated_XGBoost"]
 ratio_in_top = [r for r in integ_perm if r["Feature"] in integrated_features]
 ratio_top5 = sum(1 for r in integ_perm[:5] if r["Feature"] in integrated_features)
-ratio_note = (f"Among Integrated_XGBoost top-5 features, {ratio_top5} are ratio biomarkers. "
-              f"The most important ratio is '{ratio_in_top[0]['Feature']}' "
-              f"(rank={ratio_in_top[0]['Rank']}).")
+ratio_note = (
+    f"Among Integrated_XGBoost top-5 features, {ratio_top5} are ratio biomarkers. "
+    f"The most important ratio is '{ratio_in_top[0]['Feature']}' "
+    f"(rank={ratio_in_top[0]['Rank']})."
+)
 
 # English results paragraph
 results_para = (
@@ -499,7 +812,9 @@ readme = f"""# Step 6: Model Interpretation Summary
 {discussion_para}
 """
 
-with open(OUT_DIR / "README_step6_interpretation_summary.md", "w", encoding="utf-8") as f:
+with open(
+    OUT_DIR / "README_step6_interpretation_summary.md", "w", encoding="utf-8"
+) as f:
     f.write(readme)
 print("Saved README_step6_interpretation_summary.md")
 
@@ -536,5 +851,5 @@ with open(OUT_DIR / "step6_log.txt", "w", encoding="utf-8") as f:
     f.write("\n".join(log))
 
 print("\n".join(log))
-print(f"\nStep 6 finished.")
+print("\nStep 6 finished.")
 print(f"Results saved to {OUT_DIR}\\")

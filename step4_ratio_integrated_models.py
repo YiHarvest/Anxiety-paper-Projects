@@ -5,7 +5,6 @@ Integrated-RF, Integrated-XGBoost).  Youden-index threshold selection via
 5-fold OOF CV.  Merges step3 results for combined tables and figures.
 """
 
-import sys
 import warnings
 import pickle
 from pathlib import Path
@@ -14,8 +13,11 @@ import numpy as np
 import pandas as pd
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
+# Import publication-quality plotting utilities
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
@@ -34,6 +36,7 @@ from sklearn.metrics import (
 
 try:
     import xgboost as xgb
+
     HAS_XGBOOST = True
 except ImportError:
     HAS_XGBOOST = False
@@ -43,18 +46,31 @@ warnings.filterwarnings("ignore")
 # =============================================================================
 # Paths
 # =============================================================================
-PROJECT = Path(r"D:\sleep\AnxietyProjects")
+PROJECT = Path(__file__).resolve().parent
 TRAIN_PATH = PROJECT / "output" / "step2_preprocess_abis" / "train_with_abis_model.csv"
 TEST_PATH = PROJECT / "output" / "step2_preprocess_abis" / "test_with_abis_model.csv"
-STEP3_PERF = PROJECT / "output" / "step3_single_six_models" / "table3_step3_model_performance.csv"
-STEP3_PRED = PROJECT / "output" / "step3_single_six_models" / "step3_test_predictions.csv"
+STEP3_PERF = (
+    PROJECT
+    / "output"
+    / "step3_single_six_models"
+    / "table3_step3_model_performance.csv"
+)
+STEP3_PRED = (
+    PROJECT / "output" / "step3_single_six_models" / "step3_test_predictions.csv"
+)
 OUT_DIR = PROJECT / "output" / "step4_ratio_integrated_models"
 
 # Features
 RATIO_FEATURES = [
-    "IL6/IL10", "TNFalpha/IL10", "CRP/IL10",
-    "CORT/ACTH", "CORT/IL6", "CORT/CRP",
-    "IL6/TNFalpha", "CRP/IL6", "ACTH/IL6",
+    "IL6/IL10",
+    "TNFalpha/IL10",
+    "CRP/IL10",
+    "CORT/ACTH",
+    "CORT/IL6",
+    "CORT/CRP",
+    "IL6/TNFalpha",
+    "CRP/IL6",
+    "ACTH/IL6",
 ]
 RAW_BIOMARKERS = ["IL6", "IL10", "TNFalpha", "CRP", "ACTH", "CORT"]
 INTEGRATED_FEATURES = RAW_BIOMARKERS + RATIO_FEATURES
@@ -65,6 +81,7 @@ RANDOM_STATE = 284
 # =============================================================================
 # Helpers
 # =============================================================================
+
 
 def compute_youden_threshold(y_true, y_prob):
     """Youden index = sensitivity + specificity - 1, maximised over thresholds."""
@@ -112,7 +129,10 @@ def evaluate_model(y_true, y_pred, y_prob):
         "Specificity": tn / (tn + fp) if (tn + fp) > 0 else np.nan,
         "Precision": precision_score(y_true, y_pred, zero_division=0),
         "F1": f1_score(y_true, y_pred, zero_division=0),
-        "TN": tn, "FP": fp, "FN": fn, "TP": tp,
+        "TN": tn,
+        "FP": fp,
+        "FN": fn,
+        "TP": tp,
     }
 
 
@@ -166,43 +186,59 @@ OUT_DIR.mkdir(parents=True, exist_ok=True)
 # Model builders
 # =============================================================================
 
+
 def make_lasso(C=1.0):
     return LogisticRegression(
-        penalty="l1", solver="liblinear",
-        class_weight="balanced", random_state=RANDOM_STATE, max_iter=5000,
+        penalty="l1",
+        solver="liblinear",
+        class_weight="balanced",
+        random_state=RANDOM_STATE,
+        max_iter=5000,
         C=C,
     )
 
+
 def make_rf():
     return RandomForestClassifier(
-        n_estimators=500, max_depth=None, min_samples_split=5,
-        min_samples_leaf=3, class_weight="balanced", random_state=RANDOM_STATE,
+        n_estimators=500,
+        max_depth=None,
+        min_samples_split=5,
+        min_samples_leaf=3,
+        class_weight="balanced",
+        random_state=RANDOM_STATE,
     )
+
 
 def make_xgb():
     return xgb.XGBClassifier(
-        n_estimators=300, learning_rate=0.03, max_depth=3,
-        subsample=0.8, colsample_bytree=0.8, eval_metric="logloss",
-        random_state=RANDOM_STATE, verbosity=0,
+        n_estimators=300,
+        learning_rate=0.03,
+        max_depth=3,
+        subsample=0.8,
+        colsample_bytree=0.8,
+        eval_metric="logloss",
+        random_state=RANDOM_STATE,
+        verbosity=0,
     )
+
 
 # =============================================================================
 # Build models
 # =============================================================================
-results = []            # list of metric dicts
-model_registry = {}     # name -> (model_obj, threshold)
-lasso_coefs = []        # for table7
+results = []  # list of metric dicts
+model_registry = {}  # name -> (model_obj, threshold)
+lasso_coefs = []  # for table7
 
 model_configs = [
-    ("Ratio_LASSO",   "Ratio",      X_train_ratio,      RATIO_FEATURES),
-    ("Ratio_RF",      "Ratio",      X_train_ratio,      RATIO_FEATURES),
+    ("Ratio_LASSO", "Ratio", X_train_ratio, RATIO_FEATURES),
+    ("Ratio_RF", "Ratio", X_train_ratio, RATIO_FEATURES),
     ("Integrated_LASSO", "Integrated", X_train_integrated, INTEGRATED_FEATURES),
     ("Integrated_RF", "Integrated", X_train_integrated, INTEGRATED_FEATURES),
 ]
 
 if HAS_XGBOOST:
     model_configs += [
-        ("Ratio_XGBoost",      "Ratio",      X_train_ratio,      RATIO_FEATURES),
+        ("Ratio_XGBoost", "Ratio", X_train_ratio, RATIO_FEATURES),
         ("Integrated_XGBoost", "Integrated", X_train_integrated, INTEGRATED_FEATURES),
     ]
 
@@ -213,8 +249,11 @@ for name, feat_group, X_tr, feat_list in model_configs:
         # GridSearchCV for C
         skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
         gs = GridSearchCV(
-            make_lasso(), {"C": [0.001, 0.01, 0.1, 1, 10, 100, 1000]},
-            cv=skf, scoring="roc_auc", refit=True,
+            make_lasso(),
+            {"C": [0.001, 0.01, 0.1, 1, 10, 100, 1000]},
+            cv=skf,
+            scoring="roc_auc",
+            refit=True,
         )
         gs.fit(X_tr, y_train)
         best_C = gs.best_params_["C"]
@@ -223,6 +262,7 @@ for name, feat_group, X_tr, feat_list in model_configs:
         # OOF threshold
         def model_func():
             return make_lasso(C=best_C)
+
         _, best_thresh = oof_threshold_selection(model_func, X_tr, y_train)
 
         # Final model (already refit by GridSearchCV)
@@ -231,27 +271,35 @@ for name, feat_group, X_tr, feat_list in model_configs:
         # LASSO coefficients
         coefs = final_model.coef_[0]
         for f, c in zip(feat_list, coefs):
-            lasso_coefs.append({
-                "Model": name, "Feature_group": feat_group,
-                "Feature": f, "Coefficient": c,
-                "Abs_coefficient": abs(c),
-                "Selected_nonzero": int(abs(c) > 1e-8),
-            })
+            lasso_coefs.append(
+                {
+                    "Model": name,
+                    "Feature_group": feat_group,
+                    "Feature": f,
+                    "Coefficient": c,
+                    "Abs_coefficient": abs(c),
+                    "Selected_nonzero": int(abs(c) > 1e-8),
+                }
+            )
         nz_count = int((np.abs(coefs) > 1e-8).sum())
         print(f"  Non-zero coefficients: {nz_count}")
 
     elif name.endswith("_RF"):
         best_C = "NA"
+
         def model_func():
             return make_rf()
+
         _, best_thresh = oof_threshold_selection(model_func, X_tr, y_train)
         final_model = make_rf()
         final_model.fit(X_tr, y_train)
 
     elif name.endswith("_XGBoost"):
         best_C = "NA"
+
         def model_func():
             return make_xgb()
+
         _, best_thresh = oof_threshold_selection(model_func, X_tr, y_train)
         final_model = make_xgb()
         final_model.fit(X_tr, y_train)
@@ -264,11 +312,15 @@ for name, feat_group, X_tr, feat_list in model_configs:
     te_pred = (te_prob >= best_thresh).astype(int)
 
     metrics = evaluate_model(y_test, te_pred, te_prob)
-    metrics.update({
-        "Model": name, "Feature_group": feat_group,
-        "Features": "+".join(feat_list),
-        "Best_C": best_C, "Threshold": round(best_thresh, 4),
-    })
+    metrics.update(
+        {
+            "Model": name,
+            "Feature_group": feat_group,
+            "Features": "+".join(feat_list),
+            "Best_C": best_C,
+            "Threshold": round(best_thresh, 4),
+        }
+    )
     results.append(metrics)
     model_registry[name] = (final_model, best_thresh)
     print(f"  ROC_AUC: {metrics['ROC_AUC']:.4f}, PR_AUC: {metrics['PR_AUC']:.4f}")
@@ -277,9 +329,22 @@ for name, feat_group, X_tr, feat_list in model_configs:
 # Save table5 – step4 performance
 # =============================================================================
 col_order = [
-    "Model", "Feature_group", "Features", "Best_C", "Threshold",
-    "ROC_AUC", "PR_AUC", "Accuracy", "Sensitivity", "Specificity",
-    "Precision", "F1", "TN", "FP", "FN", "TP",
+    "Model",
+    "Feature_group",
+    "Features",
+    "Best_C",
+    "Threshold",
+    "ROC_AUC",
+    "PR_AUC",
+    "Accuracy",
+    "Sensitivity",
+    "Specificity",
+    "Precision",
+    "F1",
+    "TN",
+    "FP",
+    "FN",
+    "TP",
 ]
 perf_step4 = pd.DataFrame(results)[col_order]
 perf_step4.to_csv(OUT_DIR / "table5_step4_model_performance.csv", index=False)
@@ -296,21 +361,26 @@ if step3_perf_df is not None:
     step3_perf_df = step3_perf_df[col_order]
     combined = pd.concat([step3_perf_df, perf_step4], ignore_index=True)
     combined = combined.sort_values("ROC_AUC", ascending=False).reset_index(drop=True)
-    combined.to_csv(OUT_DIR / "table6_step3_step4_combined_performance.csv", index=False)
+    combined.to_csv(
+        OUT_DIR / "table6_step3_step4_combined_performance.csv", index=False
+    )
     print("Saved table6_step3_step4_combined_performance.csv")
 else:
     # Fallback: just step4 sorted
     perf_step4.sort_values("ROC_AUC", ascending=False).to_csv(
-        OUT_DIR / "table6_step3_step4_combined_performance.csv", index=False)
+        OUT_DIR / "table6_step3_step4_combined_performance.csv", index=False
+    )
     print("Saved table6_step3_step4_combined_performance.csv (step4 only)")
 
 # =============================================================================
 # Save step4 test predictions
 # =============================================================================
-pred_df = pd.DataFrame({
-    "sample_index": range(len(test_df)),
-    "Anxiety_14": y_test.values,
-})
+pred_df = pd.DataFrame(
+    {
+        "sample_index": range(len(test_df)),
+        "Anxiety_14": y_test.values,
+    }
+)
 
 for name, (mdl, th) in model_registry.items():
     feat_list = RATIO_FEATURES if name.startswith("Ratio_") else INTEGRATED_FEATURES
@@ -326,7 +396,14 @@ print("Saved step4_test_predictions.csv")
 # Save table7 – LASSO coefficients
 # =============================================================================
 lasso_df = pd.DataFrame(lasso_coefs)[
-    ["Model", "Feature_group", "Feature", "Coefficient", "Abs_coefficient", "Selected_nonzero"]
+    [
+        "Model",
+        "Feature_group",
+        "Feature",
+        "Coefficient",
+        "Abs_coefficient",
+        "Selected_nonzero",
+    ]
 ]
 lasso_df.to_csv(OUT_DIR / "table7_step4_lasso_coefficients.csv", index=False)
 print("Saved table7_step4_lasso_coefficients.csv")
@@ -372,8 +449,13 @@ fig, ax = plt.subplots(figsize=(8, 8))
 for i, (label, prob) in enumerate(curve_data.items()):
     fpr, tpr, _ = roc_curve(y_test, prob)
     auc_val = roc_auc_score(y_test, prob)
-    ax.plot(fpr, tpr, label=f"{label} (AUC={auc_val:.3f})",
-            color=colors[i % len(colors)], linewidth=1.2)
+    ax.plot(
+        fpr,
+        tpr,
+        label=f"{label} (AUC={auc_val:.3f})",
+        color=colors[i % len(colors)],
+        linewidth=1.2,
+    )
 ax.plot([0, 1], [0, 1], "k--", linewidth=0.6, alpha=0.4)
 ax.set_xlabel("1 - Specificity", fontsize=12)
 ax.set_ylabel("Sensitivity", fontsize=12)
@@ -394,8 +476,13 @@ fig, ax = plt.subplots(figsize=(8, 8))
 for i, (label, prob) in enumerate(curve_data.items()):
     prec, rec, _ = precision_recall_curve(y_test, prob)
     pr_auc = average_precision_score(y_test, prob)
-    ax.plot(rec, prec, label=f"{label} (PR-AUC={pr_auc:.3f})",
-            color=colors[i % len(colors)], linewidth=1.2)
+    ax.plot(
+        rec,
+        prec,
+        label=f"{label} (PR-AUC={pr_auc:.3f})",
+        color=colors[i % len(colors)],
+        linewidth=1.2,
+    )
 ax.set_xlabel("Recall", fontsize=12)
 ax.set_ylabel("Precision", fontsize=12)
 ax.set_title("PR Curves — Step 3 + Step 4", fontsize=14, fontweight="bold")
@@ -416,10 +503,18 @@ if len(lasso_sub) > 0:
     fig, ax = plt.subplots(figsize=(10, 6))
     # Group by model, then feature
     lasso_sub = lasso_sub.copy()
-    lasso_sub["label"] = lasso_sub["Model"].str.replace("_", " ") + " | " + lasso_sub["Feature"]
+    lasso_sub["label"] = (
+        lasso_sub["Model"].str.replace("_", " ") + " | " + lasso_sub["Feature"]
+    )
     colors_bar = ["#d62728" if c < 0 else "#1f77b4" for c in lasso_sub["Coefficient"]]
     y_pos = range(len(lasso_sub))
-    ax.barh(y_pos, lasso_sub["Coefficient"].values, color=colors_bar, edgecolor="k", linewidth=0.3)
+    ax.barh(
+        y_pos,
+        lasso_sub["Coefficient"].values,
+        color=colors_bar,
+        edgecolor="k",
+        linewidth=0.3,
+    )
     ax.set_yticks(y_pos)
     ax.set_yticklabels(lasso_sub["label"].values, fontsize=9)
     ax.axvline(0, color="black", linewidth=0.5)
@@ -451,8 +546,10 @@ log.append(f"XGBoost: {HAS_XGBOOST}")
 log.append(f"Merged step3 results: {merged_step3}")
 log.append("")
 for r in results:
-    log.append(f"  {r['Model']}: C={r['Best_C']}, Thresh={r['Threshold']:.4f}, "
-               f"ROC_AUC={r['ROC_AUC']:.4f}, PR_AUC={r['PR_AUC']:.4f}")
+    log.append(
+        f"  {r['Model']}: C={r['Best_C']}, Thresh={r['Threshold']:.4f}, "
+        f"ROC_AUC={r['ROC_AUC']:.4f}, PR_AUC={r['PR_AUC']:.4f}"
+    )
 log.append("")
 # Non-zero counts
 for m in ["Ratio_LASSO", "Integrated_LASSO"]:
@@ -469,5 +566,5 @@ with open(OUT_DIR / "step4_log.txt", "w", encoding="utf-8") as f:
 
 print("\n".join(log))
 
-print(f"\nStep 4 finished.")
+print("\nStep 4 finished.")
 print(f"Results saved to {OUT_DIR}\\")

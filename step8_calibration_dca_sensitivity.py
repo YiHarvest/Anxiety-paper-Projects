@@ -3,7 +3,6 @@ Step 8: Calibration curves, Brier score, DCA, and 100x repeated random-split
 robustness analysis for core anxiety classification models.
 """
 
-import sys
 import warnings
 from pathlib import Path
 
@@ -11,8 +10,11 @@ import numpy as np
 import pandas as pd
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
+# Import publication-quality plotting utilities
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
@@ -31,6 +33,7 @@ from sklearn.preprocessing import StandardScaler
 
 try:
     import xgboost as xgb
+
     HAS_XGBOOST = True
 except ImportError:
     HAS_XGBOOST = False
@@ -40,14 +43,38 @@ warnings.filterwarnings("ignore")
 # =============================================================================
 # Paths
 # =============================================================================
-PROJECT = Path(r"D:\sleep\AnxietyProjects")
-STEP3_PRED = PROJECT / "output" / "step3_single_six_models" / "step3_test_predictions.csv"
-STEP4_PRED = PROJECT / "output" / "step4_ratio_integrated_models" / "step4_test_predictions.csv"
-STEP5_PRED = PROJECT / "output" / "step5_abis_bootstrap_compare" / "step5_abis_test_predictions.csv"
-STEP5_CORE = PROJECT / "output" / "step5_abis_bootstrap_compare" / "table10_core_model_comparison.csv"
-RAW_TRAIN = PROJECT / "dataset" / "dataset" / "anxiety_bio15_seed284_train_sorted_by_difficulty.csv"
-RAW_TEST  = PROJECT / "dataset" / "dataset" / "anxiety_bio15_seed284_test_sorted_by_difficulty.csv"
-OUT_DIR   = PROJECT / "output" / "step8_calibration_dca_sensitivity"
+PROJECT = Path(__file__).resolve().parent
+STEP3_PRED = (
+    PROJECT / "output" / "step3_single_six_models" / "step3_test_predictions.csv"
+)
+STEP4_PRED = (
+    PROJECT / "output" / "step4_ratio_integrated_models" / "step4_test_predictions.csv"
+)
+STEP5_PRED = (
+    PROJECT
+    / "output"
+    / "step5_abis_bootstrap_compare"
+    / "step5_abis_test_predictions.csv"
+)
+STEP5_CORE = (
+    PROJECT
+    / "output"
+    / "step5_abis_bootstrap_compare"
+    / "table10_core_model_comparison.csv"
+)
+RAW_TRAIN = (
+    PROJECT
+    / "dataset"
+    / "dataset"
+    / "anxiety_train.csv"
+)
+RAW_TEST = (
+    PROJECT
+    / "dataset"
+    / "dataset"
+    / "anxiety_test.csv"
+)
+OUT_DIR = PROJECT / "output" / "step8_calibration_dca_sensitivity"
 
 OUTCOME = "Anxiety_14"
 RANDOM_STATE = 284
@@ -55,9 +82,15 @@ N_REPEATS = 1000  # for repeated random split
 
 RAW_BIOMARKERS = ["IL6", "IL10", "TNFalpha", "CRP", "ACTH", "CORT"]
 RATIO_FEATURES = [
-    "IL6/IL10", "TNFalpha/IL10", "CRP/IL10",
-    "CORT/ACTH", "CORT/IL6", "CORT/CRP",
-    "IL6/TNFalpha", "CRP/IL6", "ACTH/IL6",
+    "IL6/IL10",
+    "TNFalpha/IL10",
+    "CRP/IL10",
+    "CORT/ACTH",
+    "CORT/IL6",
+    "CORT/CRP",
+    "IL6/TNFalpha",
+    "CRP/IL6",
+    "ACTH/IL6",
 ]
 INTEGRATED_FEATURES = RAW_BIOMARKERS + RATIO_FEATURES  # 15 features
 ALL_PREPROCESS_FEATURES = INTEGRATED_FEATURES  # 15 features to preprocess
@@ -67,18 +100,19 @@ ALL_PREPROCESS_FEATURES = INTEGRATED_FEATURES  # 15 features to preprocess
 # step4 predictions: Ratio_LASSO_probability, Integrated_XGBoost_probability
 # step5 predictions: ABIS_predicted_probability
 CORE_MODEL_SPECS = [
-    ("CRP_only",         "LR_CRP_probability",             STEP3_PRED),
-    ("Six_XGBoost",      "Six_XGBoost_probability",        STEP3_PRED),
-    ("Six_RF",           "Six_RF_probability",             STEP3_PRED),
-    ("Ratio_LASSO",      "Ratio_LASSO_probability",        STEP4_PRED),
-    ("Integrated_XGBoost","Integrated_XGBoost_probability", STEP4_PRED),
-    ("ABIS_LR",          "ABIS_predicted_probability",     STEP5_PRED),
+    ("CRP_only", "LR_CRP_probability", STEP3_PRED),
+    ("Six_XGBoost", "Six_XGBoost_probability", STEP3_PRED),
+    ("Six_RF", "Six_RF_probability", STEP3_PRED),
+    ("Ratio_LASSO", "Ratio_LASSO_probability", STEP4_PRED),
+    ("Integrated_XGBoost", "Integrated_XGBoost_probability", STEP4_PRED),
+    ("ABIS_LR", "ABIS_predicted_probability", STEP5_PRED),
 ]
 
 
 # =============================================================================
 # Helpers: preprocessing for repeated split
 # =============================================================================
+
 
 def preprocess_biomarkers(train_df, test_df):
     """
@@ -123,7 +157,7 @@ def preprocess_biomarkers(train_df, test_df):
         )
 
     train_abis = _compute_abis(X_tr_pp)
-    test_abis  = _compute_abis(X_te_pp)
+    test_abis = _compute_abis(X_te_pp)
 
     return X_tr_pp, X_te_pp, train_abis, test_abis
 
@@ -147,6 +181,7 @@ def train_evaluate_one(model, X_train, y_train, X_test, y_test):
 # =============================================================================
 # DCA helper
 # =============================================================================
+
 
 def net_benefit(y_true, y_prob, thresholds):
     """
@@ -237,13 +272,15 @@ for n_bins in [5, 10]:
             y_test_fixed, probs, n_bins=n_bins, strategy="uniform"
         )
         for i in range(len(frac_pos)):
-            cal_points.append({
-                "Model": display,
-                "n_bins": n_bins,
-                "bin_id": i + 1,
-                "mean_predicted_probability": mean_prob[i],
-                "fraction_of_positives": frac_pos[i],
-            })
+            cal_points.append(
+                {
+                    "Model": display,
+                    "n_bins": n_bins,
+                    "bin_id": i + 1,
+                    "mean_predicted_probability": mean_prob[i],
+                    "fraction_of_positives": frac_pos[i],
+                }
+            )
 
 tab21 = pd.DataFrame(cal_points)
 tab21.to_csv(OUT_DIR / "table21_calibration_curve_points.csv", index=False)
@@ -255,18 +292,28 @@ plt.rcParams["font.serif"] = ["Times New Roman"]
 plt.rcParams["mathtext.fontset"] = "stix"
 colors_cal = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b"]
 
-for n_bins, fname in [(5, "figure28_calibration_curve_5bins"),
-                       (10, "figure29_calibration_curve_10bins")]:
+for n_bins, fname in [
+    (5, "figure28_calibration_curve_5bins"),
+    (10, "figure29_calibration_curve_10bins"),
+]:
     fig, ax = plt.subplots(figsize=(7, 7))
     sub = tab21[tab21["n_bins"] == n_bins]
     for i, display in enumerate(fixed_probs.keys()):
         pts = sub[sub["Model"] == display]
         if len(pts) == 0:
             continue
-        ax.plot(pts["mean_predicted_probability"], pts["fraction_of_positives"],
-                "s-", color=colors_cal[i % len(colors_cal)], linewidth=1.2,
-                markersize=5, label=display)
-    ax.plot([0, 1], [0, 1], "k--", linewidth=0.6, alpha=0.5, label="Perfect calibration")
+        ax.plot(
+            pts["mean_predicted_probability"],
+            pts["fraction_of_positives"],
+            "s-",
+            color=colors_cal[i % len(colors_cal)],
+            linewidth=1.2,
+            markersize=5,
+            label=display,
+        )
+    ax.plot(
+        [0, 1], [0, 1], "k--", linewidth=0.6, alpha=0.5, label="Perfect calibration"
+    )
     ax.set_xlabel("Mean Predicted Probability", fontsize=12)
     ax.set_ylabel("Fraction of Positives", fontsize=12)
     ax.set_title(f"Calibration Curves ({n_bins} bins)", fontsize=14, fontweight="bold")
@@ -293,8 +340,12 @@ treat_all_nb = treat_all_benefit(y_test_fixed, thresholds)
 treat_none_nb = np.zeros(len(thresholds))
 
 for t, nb_all, nb_none in zip(thresholds, treat_all_nb, treat_none_nb):
-    dca_rows.append({"threshold": round(t, 2), "Model": "Treat_all", "Net_benefit": nb_all})
-    dca_rows.append({"threshold": round(t, 2), "Model": "Treat_none", "Net_benefit": nb_none})
+    dca_rows.append(
+        {"threshold": round(t, 2), "Model": "Treat_all", "Net_benefit": nb_all}
+    )
+    dca_rows.append(
+        {"threshold": round(t, 2), "Model": "Treat_none", "Net_benefit": nb_none}
+    )
 
 for display, probs in fixed_probs.items():
     nb_model = net_benefit(y_test_fixed, probs, thresholds)
@@ -315,8 +366,13 @@ ax.plot(t_plot, treat_none_nb[mask], "k-", linewidth=0.8, label="Treat none", al
 
 for i, (display, probs) in enumerate(fixed_probs.items()):
     nb_model = net_benefit(y_test_fixed, probs, thresholds)
-    ax.plot(t_plot, nb_model[mask], color=colors_cal[i % len(colors_cal)],
-            linewidth=1.3, label=display)
+    ax.plot(
+        t_plot,
+        nb_model[mask],
+        color=colors_cal[i % len(colors_cal)],
+        linewidth=1.3,
+        label=display,
+    )
 
 ax.set_xlabel("Threshold Probability", fontsize=12)
 ax.set_ylabel("Net Benefit", fontsize=12)
@@ -337,7 +393,7 @@ print("\n=== Part 3: 100x Repeated Random Split ===")
 
 # Merge raw train + test
 raw_train = pd.read_csv(RAW_TRAIN)
-raw_test  = pd.read_csv(RAW_TEST)
+raw_test = pd.read_csv(RAW_TEST)
 full_raw = pd.concat([raw_train, raw_test], ignore_index=True)
 print(f"Full raw dataset: {len(full_raw)} samples")
 
@@ -360,8 +416,11 @@ for rep in range(N_REPEATS):
     # We need a single 7:3 split. Approach: use 3 folds as test, 7 as train
     # Simpler: use train_test_split logic manually
     from sklearn.model_selection import train_test_split
+
     tr_idx, te_idx = train_test_split(
-        np.arange(len(full_raw)), test_size=0.3, stratify=y_full,
+        np.arange(len(full_raw)),
+        test_size=0.3,
+        stratify=y_full,
         random_state=seed,
     )
     X_full_tr = full_raw.iloc[tr_idx].copy()
@@ -376,60 +435,108 @@ for rep in range(N_REPEATS):
     models_to_train = []
 
     # A: CRP-only LR
-    models_to_train.append((
-        "CRP_only",
-        LogisticRegression(class_weight="balanced", solver="liblinear",
-                           random_state=RANDOM_STATE, max_iter=5000),
-        X_tr_pp[["CRP"]], X_te_pp[["CRP"]],
-    ))
+    models_to_train.append(
+        (
+            "CRP_only",
+            LogisticRegression(
+                class_weight="balanced",
+                solver="liblinear",
+                random_state=RANDOM_STATE,
+                max_iter=5000,
+            ),
+            X_tr_pp[["CRP"]],
+            X_te_pp[["CRP"]],
+        )
+    )
 
     # B: Six_RF
-    models_to_train.append((
-        "Six_RF",
-        RandomForestClassifier(n_estimators=500, max_depth=None, min_samples_split=5,
-                               min_samples_leaf=3, class_weight="balanced",
-                               random_state=RANDOM_STATE),
-        X_tr_pp[RAW_BIOMARKERS], X_te_pp[RAW_BIOMARKERS],
-    ))
+    models_to_train.append(
+        (
+            "Six_RF",
+            RandomForestClassifier(
+                n_estimators=500,
+                max_depth=None,
+                min_samples_split=5,
+                min_samples_leaf=3,
+                class_weight="balanced",
+                random_state=RANDOM_STATE,
+            ),
+            X_tr_pp[RAW_BIOMARKERS],
+            X_te_pp[RAW_BIOMARKERS],
+        )
+    )
 
     # C: Six_XGBoost
     if HAS_XGBOOST:
-        models_to_train.append((
-            "Six_XGBoost",
-            xgb.XGBClassifier(n_estimators=300, learning_rate=0.03, max_depth=3,
-                              subsample=0.8, colsample_bytree=0.8,
-                              eval_metric="logloss", random_state=RANDOM_STATE,
-                              verbosity=0),
-            X_tr_pp[RAW_BIOMARKERS], X_te_pp[RAW_BIOMARKERS],
-        ))
+        models_to_train.append(
+            (
+                "Six_XGBoost",
+                xgb.XGBClassifier(
+                    n_estimators=300,
+                    learning_rate=0.03,
+                    max_depth=3,
+                    subsample=0.8,
+                    colsample_bytree=0.8,
+                    eval_metric="logloss",
+                    random_state=RANDOM_STATE,
+                    verbosity=0,
+                ),
+                X_tr_pp[RAW_BIOMARKERS],
+                X_te_pp[RAW_BIOMARKERS],
+            )
+        )
 
     # D: Ratio_LASSO
-    models_to_train.append((
-        "Ratio_LASSO",
-        LogisticRegression(penalty="l1", C=0.1, solver="liblinear",
-                           class_weight="balanced", random_state=RANDOM_STATE,
-                           max_iter=5000),
-        X_tr_pp[RATIO_FEATURES], X_te_pp[RATIO_FEATURES],
-    ))
+    models_to_train.append(
+        (
+            "Ratio_LASSO",
+            LogisticRegression(
+                penalty="l1",
+                C=0.1,
+                solver="liblinear",
+                class_weight="balanced",
+                random_state=RANDOM_STATE,
+                max_iter=5000,
+            ),
+            X_tr_pp[RATIO_FEATURES],
+            X_te_pp[RATIO_FEATURES],
+        )
+    )
 
     # E: Integrated_XGBoost
     if HAS_XGBOOST:
-        models_to_train.append((
-            "Integrated_XGBoost",
-            xgb.XGBClassifier(n_estimators=300, learning_rate=0.03, max_depth=3,
-                              subsample=0.8, colsample_bytree=0.8,
-                              eval_metric="logloss", random_state=RANDOM_STATE,
-                              verbosity=0),
-            X_tr_pp[INTEGRATED_FEATURES], X_te_pp[INTEGRATED_FEATURES],
-        ))
+        models_to_train.append(
+            (
+                "Integrated_XGBoost",
+                xgb.XGBClassifier(
+                    n_estimators=300,
+                    learning_rate=0.03,
+                    max_depth=3,
+                    subsample=0.8,
+                    colsample_bytree=0.8,
+                    eval_metric="logloss",
+                    random_state=RANDOM_STATE,
+                    verbosity=0,
+                ),
+                X_tr_pp[INTEGRATED_FEATURES],
+                X_te_pp[INTEGRATED_FEATURES],
+            )
+        )
 
     # F: ABIS_LR
-    models_to_train.append((
-        "ABIS_LR",
-        LogisticRegression(class_weight="balanced", solver="liblinear",
-                           random_state=RANDOM_STATE, max_iter=5000),
-        pd.DataFrame({"ABIS": abis_tr}), pd.DataFrame({"ABIS": abis_te}),
-    ))
+    models_to_train.append(
+        (
+            "ABIS_LR",
+            LogisticRegression(
+                class_weight="balanced",
+                solver="liblinear",
+                random_state=RANDOM_STATE,
+                max_iter=5000,
+            ),
+            pd.DataFrame({"ABIS": abis_tr}),
+            pd.DataFrame({"ABIS": abis_te}),
+        )
+    )
 
     for name, model, X_tr_m, X_te_m in models_to_train:
         metrics = train_evaluate_one(model, X_tr_m, y_tr, X_te_m, y_te)
@@ -443,9 +550,16 @@ for rep in range(N_REPEATS):
 
 tab23 = pd.DataFrame(repeat_results)
 col_order = [
-    "repeat_id", "random_state", "Model",
-    "ROC_AUC", "PR_AUC", "Brier_score",
-    "Accuracy", "Sensitivity", "Specificity", "F1",
+    "repeat_id",
+    "random_state",
+    "Model",
+    "ROC_AUC",
+    "PR_AUC",
+    "Brier_score",
+    "Accuracy",
+    "Sensitivity",
+    "Specificity",
+    "F1",
 ]
 tab23 = tab23[col_order]
 tab23.to_csv(OUT_DIR / "table23_repeated_split_results.csv", index=False)
@@ -458,19 +572,21 @@ for model_name in tab23["Model"].unique():
     sub = tab23[tab23["Model"] == model_name]
     q1 = sub["ROC_AUC"].quantile(0.25)
     q3 = sub["ROC_AUC"].quantile(0.75)
-    summary_rows.append({
-        "Model": model_name,
-        "ROC_AUC_mean": sub["ROC_AUC"].mean(),
-        "ROC_AUC_sd": sub["ROC_AUC"].std(),
-        "ROC_AUC_median": sub["ROC_AUC"].median(),
-        "ROC_AUC_Q1": q1,
-        "ROC_AUC_Q3": q3,
-        "PR_AUC_mean": sub["PR_AUC"].mean(),
-        "PR_AUC_sd": sub["PR_AUC"].std(),
-        "Brier_score_mean": sub["Brier_score"].mean(),
-        "Brier_score_sd": sub["Brier_score"].std(),
-        "Valid_repeats": len(sub),
-    })
+    summary_rows.append(
+        {
+            "Model": model_name,
+            "ROC_AUC_mean": sub["ROC_AUC"].mean(),
+            "ROC_AUC_sd": sub["ROC_AUC"].std(),
+            "ROC_AUC_median": sub["ROC_AUC"].median(),
+            "ROC_AUC_Q1": q1,
+            "ROC_AUC_Q3": q3,
+            "PR_AUC_mean": sub["PR_AUC"].mean(),
+            "PR_AUC_sd": sub["PR_AUC"].std(),
+            "Brier_score_mean": sub["Brier_score"].mean(),
+            "Brier_score_sd": sub["Brier_score"].std(),
+            "Valid_repeats": len(sub),
+        }
+    )
 
 tab24 = pd.DataFrame(summary_rows)
 tab24.to_csv(OUT_DIR / "table24_repeated_split_summary.csv", index=False)
@@ -482,14 +598,21 @@ model_order_roc = tab24.sort_values("ROC_AUC_median", ascending=False)["Model"].
 
 fig, ax = plt.subplots(figsize=(10, 6))
 box_data = [tab23[tab23["Model"] == m]["ROC_AUC"].values for m in model_order_roc]
-bp = ax.boxplot(box_data, patch_artist=True, widths=0.5,
-                boxprops=dict(facecolor="#b3d9ff", edgecolor="black", linewidth=0.8),
-                whiskerprops=dict(linewidth=0.8), capprops=dict(linewidth=0.8),
-                medianprops=dict(color="red", linewidth=1.2),
-                flierprops=dict(marker="o", markersize=3, alpha=0.5))
+bp = ax.boxplot(
+    box_data,
+    patch_artist=True,
+    widths=0.5,
+    boxprops=dict(facecolor="#b3d9ff", edgecolor="black", linewidth=0.8),
+    whiskerprops=dict(linewidth=0.8),
+    capprops=dict(linewidth=0.8),
+    medianprops=dict(color="red", linewidth=1.2),
+    flierprops=dict(marker="o", markersize=3, alpha=0.5),
+)
 ax.set_xticklabels(model_order_roc, fontsize=9, rotation=20, ha="right")
 ax.set_ylabel("ROC-AUC", fontsize=12)
-ax.set_title("100-Repeated Random Split ROC-AUC Distribution", fontsize=14, fontweight="bold")
+ax.set_title(
+    "100-Repeated Random Split ROC-AUC Distribution", fontsize=14, fontweight="bold"
+)
 for spine in ax.spines.values():
     spine.set_linewidth(0.5)
 ax.tick_params(labelsize=10)
@@ -503,14 +626,21 @@ model_order_pr = tab24.sort_values("PR_AUC_mean", ascending=False)["Model"].toli
 
 fig, ax = plt.subplots(figsize=(10, 6))
 box_data_pr = [tab23[tab23["Model"] == m]["PR_AUC"].values for m in model_order_pr]
-bp = ax.boxplot(box_data_pr, patch_artist=True, widths=0.5,
-                boxprops=dict(facecolor="#ffd9b3", edgecolor="black", linewidth=0.8),
-                whiskerprops=dict(linewidth=0.8), capprops=dict(linewidth=0.8),
-                medianprops=dict(color="red", linewidth=1.2),
-                flierprops=dict(marker="o", markersize=3, alpha=0.5))
+bp = ax.boxplot(
+    box_data_pr,
+    patch_artist=True,
+    widths=0.5,
+    boxprops=dict(facecolor="#ffd9b3", edgecolor="black", linewidth=0.8),
+    whiskerprops=dict(linewidth=0.8),
+    capprops=dict(linewidth=0.8),
+    medianprops=dict(color="red", linewidth=1.2),
+    flierprops=dict(marker="o", markersize=3, alpha=0.5),
+)
 ax.set_xticklabels(model_order_pr, fontsize=9, rotation=20, ha="right")
 ax.set_ylabel("PR-AUC", fontsize=12)
-ax.set_title("100-Repeated Random Split PR-AUC Distribution", fontsize=14, fontweight="bold")
+ax.set_title(
+    "100-Repeated Random Split PR-AUC Distribution", fontsize=14, fontweight="bold"
+)
 for spine in ax.spines.values():
     spine.set_linewidth(0.5)
 ax.tick_params(labelsize=10)
@@ -593,5 +723,5 @@ with open(OUT_DIR / "step8_log.txt", "w", encoding="utf-8") as f:
     f.write("\n".join(log))
 
 print("\n".join(log))
-print(f"\nStep 8 finished.")
+print("\nStep 8 finished.")
 print(f"Results saved to {OUT_DIR}\\")

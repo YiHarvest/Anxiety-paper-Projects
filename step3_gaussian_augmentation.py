@@ -1,27 +1,25 @@
 """
-Step 3 + 高斯噪声增强：对比原始数据与增强数据的模型性能。
+Step 3 + Gaussian noise augmentation: Compare model performance with augmented data.
 
-基于 step3_single_six_models.py，在训练集上应用高斯噪声增强，
-比较增强前后模型性能变化。
+Based on step3_single_six_models.py, applies Gaussian noise augmentation on training set,
+compares performance changes before and after augmentation.
 
-增强策略：
-1. 基础高斯噪声：统一噪声强度
-2. 特征自适应噪声：不同生物标志物使用不同噪声强度
-3. 可选：仅增强少数类（焦虑阳性）
+Augmentation strategies:
+1. Basic Gaussian noise: uniform noise intensity
+2. Feature-adaptive noise: different biomarkers use different noise intensities
+3. Optional: augment minority class only
 
-输出：
-- 增强后的训练数据
-- 性能对比表格
-- ROC/PR 曲线对比图
+Outputs:
+- Augmented training data
+- Performance comparison tables
+- ROC/PR curve comparison plots
 """
 
-import sys
 import warnings
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from scipy.stats import sem
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
@@ -37,12 +35,26 @@ from sklearn.metrics import (
     f1_score,
     precision_score,
     recall_score,
-    roc_curve,
-    precision_recall_curve,
 )
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
+# Import publication-quality plotting utilities
+# Import publication-quality plotting utilities
+from utils_plotting import (
+    apply_publication_style,
+    save_figure,
+    get_biomed_palette,
+    get_model_color,
+    BIOMED_PALETTE,
+    remove_top_right_spines,
+    add_light_grid,
+    style_axis,
+    add_legend,
+    TICK_LABEL_SIZE,
+    DPI,
+)
 
 # Try importing xgboost
 try:
@@ -54,9 +66,9 @@ except ImportError:
 warnings.filterwarnings("ignore")
 
 # =============================================================================
-# 路径配置
+# Paths
 # =============================================================================
-PROJECT = Path(r"D:\sleep\AnxietyProjects")
+PROJECT = Path(__file__).resolve().parent
 TRAIN_PATH = PROJECT / "output" / "step2_preprocess_abis" / "train_with_abis_model.csv"
 TEST_PATH = PROJECT / "output" / "step2_preprocess_abis" / "test_with_abis_model.csv"
 OUT_DIR = PROJECT / "output" / "step3_gaussian_augmentation"
@@ -557,61 +569,84 @@ print(comparison_table.to_string())
 comparison_table.to_csv(OUT_DIR / "table_roc_auc_comparison.csv", encoding="utf-8-sig")
 
 # =============================================================================
-# 可视化
+# Visualization (Publication Quality)
 # =============================================================================
 
-plt.rcParams["font.family"] = "serif"
-plt.rcParams["font.serif"] = ["Times New Roman"]
-plt.rcParams["mathtext.fontset"] = "stix"
+apply_publication_style()
 
-# --- 图 1: ROC-AUC 柱状图对比 ---
-fig, ax = plt.subplots(figsize=(12, 6))
+# --- Figure 1: ROC-AUC Bar Chart Comparison ---
+fig, ax = plt.subplots(figsize=(10, 5))
 
 models = ["CRP_LR", "Six_LASSO", "Six_RF", "Six_XGBoost"]
-experiments = [exp["name"] for exp in EXPERIMENTS]
+experiments_cn = [exp["name"] for exp in EXPERIMENTS]
+
+# Map Chinese names to English for display (avoid matplotlib font issues)
+exp_name_map = {
+    "原始数据（无增强）": "Baseline",
+    "基础高斯噪声 (α=0.05)": "Gaussian (α=0.05)",
+    "基础高斯噪声 (α=0.10)": "Gaussian (α=0.10)",
+    "特征自适应噪声": "Feature-adaptive",
+    "少数类增强（特征自适应）": "Minority Augmentation",
+}
+experiments = [exp_name_map.get(name, name) for name in experiments_cn]
 
 x = np.arange(len(models))
 width = 0.15
-colors = plt.cm.Set2(np.linspace(0, 1, len(experiments)))
+# Use Cell Metabolism biomedical palette (soft, cool, clean)
+# Create color list for experiments
+exp_colors = [
+    BIOMED_PALETTE['deep_blue'],      # Deep slate blue
+    BIOMED_PALETTE['muted_purple'],   # Muted purple
+    BIOMED_PALETTE['mauve'],          # Muted mauve
+    BIOMED_PALETTE['pale_cyan'],      # Pale cyan
+    BIOMED_PALETTE['lavender'],       # Light lavender
+][:len(experiments)]
 
-for i, exp_name in enumerate(experiments):
-    exp_data = results_df[results_df["Experiment"] == exp_name]
-    aucs = [exp_data[exp_data["Model"] == m]["ROC_AUC"].values[0] 
-            if len(exp_data[exp_data["Model"] == m]) > 0 else 0 
+for i, (exp_name_cn, exp_name) in enumerate(zip(experiments_cn, experiments)):
+    exp_data = results_df[results_df["Experiment"] == exp_name_cn]
+    aucs = [exp_data[exp_data["Model"] == m]["ROC_AUC"].values[0]
+            if len(exp_data[exp_data["Model"] == m]) > 0 else 0
             for m in models]
-    bars = ax.bar(x + i * width, aucs, width, label=exp_name, color=colors[i])
-    # 添加数值标签
+    bars = ax.bar(x + i * width, aucs, width, label=exp_name, color=exp_colors[i])  # Use English name for label
+    # Add value labels
     for bar, auc in zip(bars, aucs):
         ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.01,
-                f'{auc:.3f}', ha='center', va='bottom', fontsize=8, rotation=45)
+                f'{auc:.3f}', ha='center', va='bottom', fontsize=7, rotation=45)
 
-ax.set_xlabel("模型", fontsize=12)
-ax.set_ylabel("ROC-AUC", fontsize=12)
-ax.set_title("高斯噪声增强性能对比 — ROC-AUC", fontsize=14, fontweight="bold")
+style_axis(ax, xlabel="Model", ylabel="ROC-AUC",
+           title="Gaussian Noise Augmentation Performance Comparison")
 ax.set_xticks(x + width * (len(experiments) - 1) / 2)
-ax.set_xticklabels(models, fontsize=10)
-ax.legend(loc="lower right", fontsize=9)
+ax.set_xticklabels(models, fontsize=TICK_LABEL_SIZE)
+add_legend(ax, loc="lower right")
 ax.set_ylim([0, 1.0])
-ax.axhline(y=0.5, color='gray', linestyle='--', alpha=0.5)
-for spine in ax.spines.values():
-    spine.set_linewidth(0.5)
-ax.tick_params(labelsize=10)
+ax.axhline(y=0.5, color='gray', linestyle='--', alpha=0.5, linewidth=0.8)
+remove_top_right_spines(ax)
+add_light_grid(ax)
 fig.tight_layout()
-fig.savefig(OUT_DIR / "figure_augmentation_roc_auc_comparison.png", dpi=300)
-plt.close(fig)
-print(f"\n保存图表: {OUT_DIR / 'figure_augmentation_roc_auc_comparison.png'}")
+save_figure(fig, OUT_DIR / "figure_augmentation_roc_auc_comparison.png", dpi=DPI)
+print(f"\nSaved: {OUT_DIR / 'figure_augmentation_roc_auc_comparison.png'}")
 
-# --- 图 2: 原始 vs 最佳增强对比 ---
-fig, ax = plt.subplots(figsize=(8, 5))
+# --- Figure 2: Baseline vs Best Augmentation Comparison ---
+fig, ax = plt.subplots(figsize=(6, 4))
 
-# 找出最佳增强方法
-baseline_exp = "原始数据（无增强）"
-baseline_data = results_df[results_df["Experiment"] == baseline_exp]
+# Find best augmentation method
+# Map Chinese names to English for display
+exp_name_map = {
+    "原始数据（无增强）": "Baseline (No Augmentation)",
+    "基础高斯噪声 (α=0.05)": "Gaussian Noise (α=0.05)",
+    "基础高斯噪声 (α=0.10)": "Gaussian Noise (α=0.10)",
+    "特征自适应噪声": "Feature-adaptive Noise",
+    "少数类增强（特征自适应）": "Minority Class Augmentation",
+}
 
-# 计算各增强方法相对基线的提升
+baseline_exp_cn = "原始数据（无增强）" if "原始数据（无增强）" in experiments_cn else experiments_cn[0]
+baseline_exp = exp_name_map.get(baseline_exp_cn, baseline_exp_cn)
+baseline_data = results_df[results_df["Experiment"] == baseline_exp_cn]
+
+# Calculate improvements for each augmentation method
 improvements = []
-for exp_name in experiments[1:]:  # 跳过原始数据
-    exp_data = results_df[results_df["Experiment"] == exp_name]
+for exp_name_cn in experiments_cn[1:]:  # Skip baseline
+    exp_data = results_df[results_df["Experiment"] == exp_name_cn]
     for model in models:
         base_auc = baseline_data[baseline_data["Model"] == model]["ROC_AUC"].values[0] \
             if len(baseline_data[baseline_data["Model"] == model]) > 0 else 0
@@ -619,7 +654,8 @@ for exp_name in experiments[1:]:  # 跳过原始数据
             if len(exp_data[exp_data["Model"] == model]) > 0 else 0
         improvement = exp_auc - base_auc
         improvements.append({
-            "Experiment": exp_name,
+            "Experiment": exp_name_cn,
+            "Experiment_EN": exp_name_map.get(exp_name_cn, exp_name_cn),
             "Model": model,
             "Baseline_AUC": base_auc,
             "Augmented_AUC": exp_auc,
@@ -628,12 +664,13 @@ for exp_name in experiments[1:]:  # 跳过原始数据
 
 improve_df = pd.DataFrame(improvements)
 
-# 找出最佳增强方法
-best_aug_exp = improve_df.groupby("Experiment")["Improvement"].mean().idxmax()
-print(f"\n最佳增强方法（平均 ROC-AUC 提升）: {best_aug_exp}")
+# Find best augmentation method
+best_aug_exp_cn = improve_df.groupby("Experiment")["Improvement"].mean().idxmax()
+best_aug_exp = exp_name_map.get(best_aug_exp_cn, best_aug_exp_cn)
+print(f"\nBest augmentation method (average ROC-AUC improvement): {best_aug_exp}")
 
-# 绘制原始 vs 最佳增强对比
-best_data = results_df[results_df["Experiment"] == best_aug_exp]
+# Plot baseline vs best augmentation comparison
+best_data = results_df[results_df["Experiment"] == best_aug_exp_cn]  # Use Chinese name to query results_df
 
 x = np.arange(len(models))
 width = 0.35
@@ -645,39 +682,40 @@ best_aucs = [best_data[best_data["Model"] == m]["ROC_AUC"].values[0]
              if len(best_data[best_data["Model"] == m]) > 0 else 0 
              for m in models]
 
-bars1 = ax.bar(x - width/2, baseline_aucs, width, label=baseline_exp, color="#1f77b4")
-bars2 = ax.bar(x + width/2, best_aucs, width, label=best_aug_exp, color="#ff7f0e")
+# Use Cell Metabolism biomedical palette
+baseline_color = BIOMED_PALETTE['deep_blue']  # Deep slate blue
+best_color = BIOMED_PALETTE['muted_purple']   # Muted purple
 
-# 添加数值标签
+bars1 = ax.bar(x - width/2, baseline_aucs, width, label=baseline_exp, color=baseline_color)
+bars2 = ax.bar(x + width/2, best_aucs, width, label=best_aug_exp, color=best_color)
+
+# Add value labels
 for bar in bars1:
     ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.01,
-            f'{bar.get_height():.3f}', ha='center', va='bottom', fontsize=9)
+            f'{bar.get_height():.3f}', ha='center', va='bottom', fontsize=8)
 for bar in bars2:
     ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.01,
-            f'{bar.get_height():.3f}', ha='center', va='bottom', fontsize=9)
+            f'{bar.get_height():.3f}', ha='center', va='bottom', fontsize=8)
 
-ax.set_xlabel("模型", fontsize=12)
-ax.set_ylabel("ROC-AUC", fontsize=12)
-ax.set_title(f"原始 vs 最佳增强方法对比\n({best_aug_exp})", fontsize=14, fontweight="bold")
+style_axis(ax, xlabel="Model", ylabel="ROC-AUC",
+           title=f"Baseline vs Best Augmentation Method")  # Use generic title instead of dynamic Chinese
 ax.set_xticks(x)
-ax.set_xticklabels(models, fontsize=10)
-ax.legend(loc="lower right", fontsize=10)
+ax.set_xticklabels(models, fontsize=TICK_LABEL_SIZE)
+add_legend(ax, loc="lower right")
 ax.set_ylim([0, 1.0])
-ax.axhline(y=0.5, color='gray', linestyle='--', alpha=0.5)
-for spine in ax.spines.values():
-    spine.set_linewidth(0.5)
-ax.tick_params(labelsize=10)
+ax.axhline(y=0.5, color='gray', linestyle='--', alpha=0.5, linewidth=0.8)
+remove_top_right_spines(ax)
+add_light_grid(ax)
 fig.tight_layout()
-fig.savefig(OUT_DIR / "figure_baseline_vs_best_augmentation.png", dpi=300)
-plt.close(fig)
-print(f"保存图表: {OUT_DIR / 'figure_baseline_vs_best_augmentation.png'}")
+save_figure(fig, OUT_DIR / "figure_baseline_vs_best_augmentation.png", dpi=DPI)
+print(f"Saved: {OUT_DIR / 'figure_baseline_vs_best_augmentation.png'}")
 
 # =============================================================================
 # 保存增强后的训练数据（最佳方法）
 # =============================================================================
 
 # 使用最佳增强方法重新生成增强数据
-best_exp_config = next(exp for exp in EXPERIMENTS if exp["name"] == best_aug_exp)
+best_exp_config = next(exp for exp in EXPERIMENTS if exp["name"] == best_aug_exp_cn)
 X_train_best, y_train_best, _ = gaussian_noise_augmentation(
     X_train, y_train,
     noise_factor=best_exp_config["noise_factor"] if best_exp_config["noise_factor"] else 0.1,

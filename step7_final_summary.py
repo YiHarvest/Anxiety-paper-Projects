@@ -3,7 +3,6 @@ Step 7: Final result summary and paper materials.
 Merges all step2–6 outputs into publication-ready tables, figures, and text.
 """
 
-import sys
 import shutil
 import warnings
 from pathlib import Path
@@ -12,48 +11,110 @@ import numpy as np
 import pandas as pd
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
+# Import publication-quality plotting utilities
 
 warnings.filterwarnings("ignore")
 
 # =============================================================================
 # Paths
 # =============================================================================
-PROJECT = Path(r"D:\sleep\AnxietyProjects")
+PROJECT = Path(__file__).resolve().parent
 OUT_DIR = PROJECT / "output" / "step7_final_summary"
 
 # All input files we need to read
 INPUT_FILES = {
-    "step2_split":       PROJECT / "output" / "step2_preprocess_abis" / "table1_split_distribution_check.csv",
-    "step2_bio_desc":    PROJECT / "output" / "step2_preprocess_abis" / "table2_biomarker_description.csv",
-    "step3_perf":        PROJECT / "output" / "step3_single_six_models" / "table3_step3_model_performance.csv",
-    "step3_best_single": PROJECT / "output" / "step3_single_six_models" / "best_single_biomarker.csv",
-    "step3_lasso_coef":  PROJECT / "output" / "step3_single_six_models" / "table4_step3_six_lasso_coefficients.csv",
-    "step4_perf":        PROJECT / "output" / "step4_ratio_integrated_models" / "table5_step4_model_performance.csv",
-    "step4_combined":    PROJECT / "output" / "step4_ratio_integrated_models" / "table6_step3_step4_combined_performance.csv",
-    "step4_lasso_coef":  PROJECT / "output" / "step4_ratio_integrated_models" / "table7_step4_lasso_coefficients.csv",
-    "step5_abis_perf":   PROJECT / "output" / "step5_abis_bootstrap_compare" / "table8_abis_model_performance.csv",
-    "step5_all_ranked":  PROJECT / "output" / "step5_abis_bootstrap_compare" / "table9_all_model_performance_ranked.csv",
-    "step5_core_comp":   PROJECT / "output" / "step5_abis_bootstrap_compare" / "table10_core_model_comparison.csv",
-    "step5_bootstrap":   PROJECT / "output" / "step5_abis_bootstrap_compare" / "table11_bootstrap_auc_ci.csv",
-    "step6_builtin":     PROJECT / "output" / "step6_model_interpretation" / "table12_builtin_feature_importance.csv",
-    "step6_perm":        PROJECT / "output" / "step6_model_interpretation" / "table13_permutation_importance.csv",
-    "step6_shap":        PROJECT / "output" / "step6_model_interpretation" / "table14_shap_importance.csv",
-    "step6_key_bio":     PROJECT / "output" / "step6_model_interpretation" / "table15_key_biomarker_summary.csv",
-    "step6_readme":      PROJECT / "output" / "step6_model_interpretation" / "README_step6_interpretation_summary.md",
+    "step2_split": PROJECT
+    / "output"
+    / "step2_preprocess_abis"
+    / "table1_split_distribution_check.csv",
+    "step2_bio_desc": PROJECT
+    / "output"
+    / "step2_preprocess_abis"
+    / "table2_biomarker_description.csv",
+    "step3_perf": PROJECT
+    / "output"
+    / "step3_single_six_models"
+    / "table3_step3_model_performance.csv",
+    "step3_best_single": PROJECT
+    / "output"
+    / "step3_single_six_models"
+    / "best_single_biomarker.csv",
+    "step3_lasso_coef": PROJECT
+    / "output"
+    / "step3_single_six_models"
+    / "table4_step3_six_lasso_coefficients.csv",
+    "step4_perf": PROJECT
+    / "output"
+    / "step4_ratio_integrated_models"
+    / "table5_step4_model_performance.csv",
+    "step4_combined": PROJECT
+    / "output"
+    / "step4_ratio_integrated_models"
+    / "table6_step3_step4_combined_performance.csv",
+    "step4_lasso_coef": PROJECT
+    / "output"
+    / "step4_ratio_integrated_models"
+    / "table7_step4_lasso_coefficients.csv",
+    "step5_abis_perf": PROJECT
+    / "output"
+    / "step5_abis_bootstrap_compare"
+    / "table8_abis_model_performance.csv",
+    "step5_all_ranked": PROJECT
+    / "output"
+    / "step5_abis_bootstrap_compare"
+    / "table9_all_model_performance_ranked.csv",
+    "step5_core_comp": PROJECT
+    / "output"
+    / "step5_abis_bootstrap_compare"
+    / "table10_core_model_comparison.csv",
+    "step5_bootstrap": PROJECT
+    / "output"
+    / "step5_abis_bootstrap_compare"
+    / "table11_bootstrap_auc_ci.csv",
+    "step6_builtin": PROJECT
+    / "output"
+    / "step6_model_interpretation"
+    / "table12_builtin_feature_importance.csv",
+    "step6_perm": PROJECT
+    / "output"
+    / "step6_model_interpretation"
+    / "table13_permutation_importance.csv",
+    "step6_shap": PROJECT
+    / "output"
+    / "step6_model_interpretation"
+    / "table14_shap_importance.csv",
+    "step6_key_bio": PROJECT
+    / "output"
+    / "step6_model_interpretation"
+    / "table15_key_biomarker_summary.csv",
+    "step6_readme": PROJECT
+    / "output"
+    / "step6_model_interpretation"
+    / "README_step6_interpretation_summary.md",
 }
 
 # Figures to copy
 COPY_FIGURES = {
-    PROJECT / "output" / "step5_abis_bootstrap_compare" / "figure7_core_model_roc_curves.png":
-        "figure24_final_roc_curves.png",
-    PROJECT / "output" / "step5_abis_bootstrap_compare" / "figure8_core_model_pr_curves.png":
-        "figure25_final_pr_curves.png",
-    PROJECT / "output" / "step6_model_interpretation" / "figure18_six_xgboost_shap_bar.png":
-        "figure26_final_six_xgboost_shap_bar.png",
-    PROJECT / "output" / "step6_model_interpretation" / "figure19_six_xgboost_shap_summary.png":
-        "figure27_final_six_xgboost_shap_summary.png",
+    PROJECT
+    / "output"
+    / "step5_abis_bootstrap_compare"
+    / "figure7_core_model_roc_curves.png": "figure24_final_roc_curves.png",
+    PROJECT
+    / "output"
+    / "step5_abis_bootstrap_compare"
+    / "figure8_core_model_pr_curves.png": "figure25_final_pr_curves.png",
+    PROJECT
+    / "output"
+    / "step6_model_interpretation"
+    / "figure18_six_xgboost_shap_bar.png": "figure26_final_six_xgboost_shap_bar.png",
+    PROJECT
+    / "output"
+    / "step6_model_interpretation"
+    / "figure19_six_xgboost_shap_summary.png": "figure27_final_six_xgboost_shap_summary.png",
 }
 
 # =============================================================================
@@ -96,14 +157,26 @@ bs = data.get("step5_bootstrap")
 if perf is not None and bs is not None:
     # Normalise model names for join
     bs_clean = bs.copy()
-    bs_clean["_join"] = bs_clean["Model"].str.replace("Best_Single", "LR_CRP").str.replace("_LR", "")
+    bs_clean["_join"] = (
+        bs_clean["Model"].str.replace("Best_Single", "LR_CRP").str.replace("_LR", "")
+    )
     perf_clean = perf.copy()
     perf_clean["_join"] = perf_clean["Model"]
 
     merged = perf_clean.merge(
-        bs_clean[["_join", "ROC_AUC_CI_lower", "ROC_AUC_CI_upper",
-                  "PR_AUC", "PR_AUC_CI_lower", "PR_AUC_CI_upper"]],
-        on="_join", how="left", suffixes=("", "_bs")
+        bs_clean[
+            [
+                "_join",
+                "ROC_AUC_CI_lower",
+                "ROC_AUC_CI_upper",
+                "PR_AUC",
+                "PR_AUC_CI_lower",
+                "PR_AUC_CI_upper",
+            ]
+        ],
+        on="_join",
+        how="left",
+        suffixes=("", "_bs"),
     )
     # Use bootstrap PR_AUC as PR_AUC if available
     merged["PR_AUC_final"] = merged["PR_AUC_bs"].fillna(merged["PR_AUC"])
@@ -111,19 +184,35 @@ if perf is not None and bs is not None:
     merged["ROC_AUC_CI_upper"] = merged["ROC_AUC_CI_upper"].fillna(merged["ROC_AUC"])
 
     tab16_cols = [
-        "Model", "Feature_group", "ROC_AUC", "ROC_AUC_CI_lower", "ROC_AUC_CI_upper",
-        "PR_AUC_final", "PR_AUC_CI_lower", "PR_AUC_CI_upper",
-        "Sensitivity", "Specificity", "Accuracy", "F1", "Threshold",
+        "Model",
+        "Feature_group",
+        "ROC_AUC",
+        "ROC_AUC_CI_lower",
+        "ROC_AUC_CI_upper",
+        "PR_AUC_final",
+        "PR_AUC_CI_lower",
+        "PR_AUC_CI_upper",
+        "Sensitivity",
+        "Specificity",
+        "Accuracy",
+        "F1",
+        "Threshold",
     ]
     # Remap
     final_cols_map = {
-        "Model": "Model", "Feature_group": "Feature_group",
-        "ROC_AUC": "ROC_AUC", "ROC_AUC_CI_lower": "ROC_AUC_CI_lower",
+        "Model": "Model",
+        "Feature_group": "Feature_group",
+        "ROC_AUC": "ROC_AUC",
+        "ROC_AUC_CI_lower": "ROC_AUC_CI_lower",
         "ROC_AUC_CI_upper": "ROC_AUC_CI_upper",
-        "PR_AUC_final": "PR_AUC", "PR_AUC_CI_lower": "PR_AUC_CI_lower",
+        "PR_AUC_final": "PR_AUC",
+        "PR_AUC_CI_lower": "PR_AUC_CI_lower",
         "PR_AUC_CI_upper": "PR_AUC_CI_upper",
-        "Sensitivity": "Sensitivity", "Specificity": "Specificity",
-        "Accuracy": "Accuracy", "F1": "F1", "Threshold": "Threshold",
+        "Sensitivity": "Sensitivity",
+        "Specificity": "Specificity",
+        "Accuracy": "Accuracy",
+        "F1": "F1",
+        "Threshold": "Threshold",
     }
     tab16 = merged[list(final_cols_map.keys())].rename(columns=final_cols_map)
     tab16 = tab16.sort_values("ROC_AUC", ascending=False).reset_index(drop=True)
@@ -138,21 +227,21 @@ else:
 print("\n=== Table17: Core model summary for paper ===")
 
 core_model_map = {
-    "Best_Single":       ("Best single biomarker",        "CRP"),
-    "Six_XGBoost":       ("Six-biomarker XGBoost",        "IL6, IL10, TNFalpha, CRP, ACTH, CORT"),
-    "Six_RF":            ("Six-biomarker Random Forest",  "IL6, IL10, TNFalpha, CRP, ACTH, CORT"),
-    "Ratio_LASSO":       ("Ratio-based LASSO",            "9 ratio features"),
-    "Integrated_XGBoost":("Integrated XGBoost",           "6 raw + 9 ratio features"),
-    "ABIS_LR":           ("ABIS Logistic Regression",     "ABIS"),
+    "Best_Single": ("Best single biomarker", "CRP"),
+    "Six_XGBoost": ("Six-biomarker XGBoost", "IL6, IL10, TNFalpha, CRP, ACTH, CORT"),
+    "Six_RF": ("Six-biomarker Random Forest", "IL6, IL10, TNFalpha, CRP, ACTH, CORT"),
+    "Ratio_LASSO": ("Ratio-based LASSO", "9 ratio features"),
+    "Integrated_XGBoost": ("Integrated XGBoost", "6 raw + 9 ratio features"),
+    "ABIS_LR": ("ABIS Logistic Regression", "ABIS"),
 }
 
 core_interpretation = {
-    "Best_Single":       "Best individual blood biomarker",
-    "Six_XGBoost":       "Best-performing six-biomarker model",
-    "Six_RF":            "Alternative nonlinear six-biomarker model",
-    "Ratio_LASSO":       "Ratio-based biomarker model",
+    "Best_Single": "Best individual blood biomarker",
+    "Six_XGBoost": "Best-performing six-biomarker model",
+    "Six_RF": "Alternative nonlinear six-biomarker model",
+    "Ratio_LASSO": "Ratio-based biomarker model",
     "Integrated_XGBoost": "Original plus ratio-based integrated model",
-    "ABIS_LR":           "Knowledge-driven composite biomarker index",
+    "ABIS_LR": "Knowledge-driven composite biomarker index",
 }
 
 tab17_rows = []
@@ -178,15 +267,17 @@ for bs_name, (display, bio_set) in core_model_map.items():
             roc_ci = f"{lookup['ROC_AUC']:.3f}"
             pr_ci = f"{lookup['PR_AUC']:.3f}"
 
-        tab17_rows.append({
-            "Model": display,
-            "Biomarker_set": bio_set,
-            "ROC_AUC_95CI": roc_ci,
-            "PR_AUC_95CI": pr_ci,
-            "Sensitivity": f"{lookup.get('Sensitivity', np.nan):.3f}",
-            "Specificity": f"{lookup.get('Specificity', np.nan):.3f}",
-            "Interpretation": core_interpretation[bs_name],
-        })
+        tab17_rows.append(
+            {
+                "Model": display,
+                "Biomarker_set": bio_set,
+                "ROC_AUC_95CI": roc_ci,
+                "PR_AUC_95CI": pr_ci,
+                "Sensitivity": f"{lookup.get('Sensitivity', np.nan):.3f}",
+                "Specificity": f"{lookup.get('Specificity', np.nan):.3f}",
+                "Interpretation": core_interpretation[bs_name],
+            }
+        )
 
 tab17 = pd.DataFrame(tab17_rows)
 tab17.to_csv(OUT_DIR / "table17_core_model_summary_for_paper.csv", index=False)
@@ -212,12 +303,19 @@ if key_bio is not None:
     tab18["Biological_category"] = tab18["Feature"].map(bio_cat)
     tab18["Final_interpretation"] = tab18.apply(
         lambda r: f"{r['Biological_category']} marker (avg rank={r['Average_rank']:.1f})",
-        axis=1
+        axis=1,
     )
-    tab18 = tab18[[
-        "Feature", "Biological_category", "Builtin_rank", "Permutation_rank",
-        "SHAP_rank", "Average_rank", "Final_interpretation"
-    ]]
+    tab18 = tab18[
+        [
+            "Feature",
+            "Biological_category",
+            "Builtin_rank",
+            "Permutation_rank",
+            "SHAP_rank",
+            "Average_rank",
+            "Final_interpretation",
+        ]
+    ]
     tab18.to_csv(OUT_DIR / "table18_final_biomarker_interpretation.csv", index=False)
     print(f"Saved table18_final_biomarker_interpretation.csv ({len(tab18)} rows)")
 else:
@@ -335,19 +433,34 @@ if len(tab17) > 0 and bs is not None:
     yerr_lower = [max(0, roc_vals[i] - ci_lower[i]) for i in range(len(labels))]
     yerr_upper = [max(0, ci_upper[i] - roc_vals[i]) for i in range(len(labels))]
 
-    bars = ax.bar(x, roc_vals, yerr=[yerr_lower, yerr_upper],
-                  color=bar_colors[:len(labels)], edgecolor="k", linewidth=0.5,
-                  capsize=4, error_kw=dict(lw=1))
+    bars = ax.bar(
+        x,
+        roc_vals,
+        yerr=[yerr_lower, yerr_upper],
+        color=bar_colors[: len(labels)],
+        edgecolor="k",
+        linewidth=0.5,
+        capsize=4,
+        error_kw=dict(lw=1),
+    )
 
     # Value labels
     for i, (bar, v) in enumerate(zip(bars, roc_vals)):
-        ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.01,
-                f"{v:.3f}", ha="center", va="bottom", fontsize=9)
+        ax.text(
+            bar.get_x() + bar.get_width() / 2,
+            bar.get_height() + 0.01,
+            f"{v:.3f}",
+            ha="center",
+            va="bottom",
+            fontsize=9,
+        )
 
     ax.set_xticks(x)
     ax.set_xticklabels(labels, fontsize=9, rotation=20, ha="right")
     ax.set_ylabel("ROC-AUC", fontsize=12)
-    ax.set_title("Core Model ROC-AUC with 95% Bootstrap CI", fontsize=14, fontweight="bold")
+    ax.set_title(
+        "Core Model ROC-AUC with 95% Bootstrap CI", fontsize=14, fontweight="bold"
+    )
     ax.set_ylim([0.35, 0.80])
     ax.axhline(0.5, color="gray", linewidth=0.6, linestyle="--", alpha=0.5)
     for spine in ax.spines.values():
@@ -369,17 +482,29 @@ if key_bio is not None:
     fig, ax = plt.subplots(figsize=(8, 5))
     bio_rank = key_bio.sort_values("Average_rank", ascending=False)
 
-    colors_bio = {"CORT": "#d62728", "ACTH": "#d62728",
-                  "IL6": "#1f77b4", "TNFalpha": "#1f77b4", "IL10": "#2ca02c",
-                  "CRP": "#ff7f0e"}
+    colors_bio = {
+        "CORT": "#d62728",
+        "ACTH": "#d62728",
+        "IL6": "#1f77b4",
+        "TNFalpha": "#1f77b4",
+        "IL10": "#2ca02c",
+        "CRP": "#ff7f0e",
+    }
     bar_colors = [colors_bio.get(f, "#7f7f7f") for f in bio_rank["Feature"]]
 
-    ax.barh(range(len(bio_rank)), bio_rank["Average_rank"].values,
-            color=bar_colors, edgecolor="k", linewidth=0.3)
+    ax.barh(
+        range(len(bio_rank)),
+        bio_rank["Average_rank"].values,
+        color=bar_colors,
+        edgecolor="k",
+        linewidth=0.3,
+    )
     ax.set_yticks(range(len(bio_rank)))
     ax.set_yticklabels(bio_rank["Feature"].values, fontsize=11)
     ax.set_xlabel("Average Rank (lower = more important)", fontsize=12)
-    ax.set_title("Biomarker Importance Ranking (Six_XGBoost)", fontsize=14, fontweight="bold")
+    ax.set_title(
+        "Biomarker Importance Ranking (Six_XGBoost)", fontsize=14, fontweight="bold"
+    )
     ax.invert_yaxis()
     ax.invert_xaxis()  # lower rank = more important
     for spine in ax.spines.values():
@@ -592,5 +717,5 @@ with open(OUT_DIR / "step7_log.txt", "w", encoding="utf-8") as f:
     f.write("\n".join(log))
 
 print("\n".join(log))
-print(f"\nStep 7 finished.")
+print("\nStep 7 finished.")
 print(f"Results saved to {OUT_DIR}\\")

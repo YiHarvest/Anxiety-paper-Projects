@@ -4,13 +4,11 @@ Builds M1 (6 single-biomarker LR models) and M2 (LASSO, RF, XGBoost).
 Uses Youden index for threshold selection via 5-fold out-of-fold CV.
 """
 
-import sys
 import warnings
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from scipy.stats import sem
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
@@ -30,13 +28,27 @@ from sklearn.metrics import (
     precision_recall_curve,
 )
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from matplotlib.font_manager import FontProperties
+
+# Import publication-quality plotting utilities
+from utils_plotting import (
+    apply_publication_style,
+    save_figure,
+    MODEL_COLORS,
+    BIOMED_PALETTE,
+    remove_top_right_spines,
+    add_light_grid,
+    style_axis,
+    add_legend,
+    DPI,
+)
 
 # Try importing xgboost
 try:
     import xgboost as xgb
+
     HAS_XGBOOST = True
 except ImportError:
     HAS_XGBOOST = False
@@ -46,7 +58,7 @@ warnings.filterwarnings("ignore")
 # =============================================================================
 # Paths
 # =============================================================================
-PROJECT = Path(r"D:\sleep\AnxietyProjects")
+PROJECT = Path(__file__).resolve().parent
 TRAIN_PATH = PROJECT / "output" / "step2_preprocess_abis" / "train_with_abis_model.csv"
 TEST_PATH = PROJECT / "output" / "step2_preprocess_abis" / "test_with_abis_model.csv"
 OUT_DIR = PROJECT / "output" / "step3_single_six_models"
@@ -56,10 +68,19 @@ BIOMARKERS = ["IL6", "IL10", "TNFalpha", "CRP", "ACTH", "CORT"]
 
 # Columns we must exclude (ratios, ABIS, non-biomarker columns)
 EXCLUDE_COLS = [
-    "CaseNumber", "Depression_18", "Chronic_pain", "ABIS",
-    "IL6/IL10", "TNFalpha/IL10", "CRP/IL10",
-    "CORT/ACTH", "CORT/IL6", "CORT/CRP",
-    "IL6/TNFalpha", "CRP/IL6", "ACTH/IL6",
+    "CaseNumber",
+    "Depression_18",
+    "Chronic_pain",
+    "ABIS",
+    "IL6/IL10",
+    "TNFalpha/IL10",
+    "CRP/IL10",
+    "CORT/ACTH",
+    "CORT/IL6",
+    "CORT/CRP",
+    "IL6/TNFalpha",
+    "CRP/IL6",
+    "ACTH/IL6",
 ]
 
 OUTCOME = "Anxiety_14"
@@ -68,6 +89,7 @@ RANDOM_STATE = 284
 # =============================================================================
 # Helper functions
 # =============================================================================
+
 
 def compute_youden_threshold(y_true, y_prob):
     """Find the threshold that maximises Youden index = sensitivity + specificity - 1."""
@@ -89,11 +111,11 @@ def compute_youden_threshold(y_true, y_prob):
         return 0.5, 0.0
 
     # Cumulative TP and FP at each position (descending probability)
-    tp_cum = np.cumsum(y_true_sorted)          # TP at each rank
-    fp_cum = np.arange(1, n + 1) - tp_cum      # FP at each rank
+    tp_cum = np.cumsum(y_true_sorted)  # TP at each rank
+    fp_cum = np.arange(1, n + 1) - tp_cum  # FP at each rank
 
     sensitivity = tp_cum / n_pos
-    specificity = (n_neg - fp_cum) / n_neg     # TN / n_neg, TN = n_neg - FP
+    specificity = (n_neg - fp_cum) / n_neg  # TN / n_neg, TN = n_neg - FP
     youden = sensitivity + specificity - 1
 
     best_idx = np.argmax(youden)
@@ -222,13 +244,15 @@ for feat in BIOMARKERS:
     te_pred = (te_prob >= best_thresh).astype(int)
 
     metrics = evaluate_model(y_test, te_pred, te_prob)
-    metrics.update({
-        "Model": f"LR_{feat}",
-        "Feature_group": "Single",
-        "Features": feat,
-        "Best_C": "NA",
-        "Threshold": round(best_thresh, 4),
-    })
+    metrics.update(
+        {
+            "Model": f"LR_{feat}",
+            "Feature_group": "Single",
+            "Features": feat,
+            "Best_C": "NA",
+            "Threshold": round(best_thresh, 4),
+        }
+    )
     single_results.append(metrics)
     single_models[feat] = lr
     single_thresholds[feat] = best_thresh
@@ -240,18 +264,24 @@ best_single_name = best_single_feat["Model"]
 best_single_model = single_models[best_single_feat["Features"]]
 best_single_threshold = single_thresholds[best_single_feat["Features"]]
 
-print(f"\n  Best single model: {best_single_name} (ROC_AUC={best_single_feat['ROC_AUC']:.4f})")
+print(
+    f"\n  Best single model: {best_single_name} (ROC_AUC={best_single_feat['ROC_AUC']:.4f})"
+)
 
 # Save best single biomarker info
-best_single_df = pd.DataFrame([{
-    "Best_single_model": best_single_name,
-    "Feature": best_single_feat["Features"],
-    "ROC_AUC": best_single_feat["ROC_AUC"],
-    "PR_AUC": best_single_feat["PR_AUC"],
-    "Sensitivity": best_single_feat["Sensitivity"],
-    "Specificity": best_single_feat["Specificity"],
-    "Threshold": best_single_feat["Threshold"],
-}])
+best_single_df = pd.DataFrame(
+    [
+        {
+            "Best_single_model": best_single_name,
+            "Feature": best_single_feat["Features"],
+            "ROC_AUC": best_single_feat["ROC_AUC"],
+            "PR_AUC": best_single_feat["PR_AUC"],
+            "Sensitivity": best_single_feat["Sensitivity"],
+            "Specificity": best_single_feat["Specificity"],
+            "Threshold": best_single_feat["Threshold"],
+        }
+    ]
+)
 best_single_df.to_csv(OUT_DIR / "best_single_biomarker.csv", index=False)
 print("  Saved best_single_biomarker.csv")
 
@@ -289,6 +319,7 @@ best_C = lasso_cv.best_params_["C"]
 print(f"    Best C: {best_C}")
 print(f"    Best CV ROC_AUC: {lasso_cv.best_score_:.4f}")
 
+
 # OOF threshold selection for LASSO
 def make_lasso():
     return LogisticRegression(
@@ -300,6 +331,7 @@ def make_lasso():
         max_iter=5000,
     )
 
+
 oof_lasso, thresh_lasso = oof_threshold_selection_any(make_lasso, X_train, y_train)
 print(f"    Threshold (Youden): {thresh_lasso:.4f}")
 
@@ -309,13 +341,15 @@ te_prob_lasso = lasso_final.predict_proba(X_test)[:, 1]
 te_pred_lasso = (te_prob_lasso >= thresh_lasso).astype(int)
 
 lasso_metrics = evaluate_model(y_test, te_pred_lasso, te_prob_lasso)
-lasso_metrics.update({
-    "Model": "Six_LASSO",
-    "Feature_group": "Six",
-    "Features": "IL6+IL10+TNFalpha+CRP+ACTH+CORT",
-    "Best_C": best_C,
-    "Threshold": round(thresh_lasso, 4),
-})
+lasso_metrics.update(
+    {
+        "Model": "Six_LASSO",
+        "Feature_group": "Six",
+        "Features": "IL6+IL10+TNFalpha+CRP+ACTH+CORT",
+        "Best_C": best_C,
+        "Threshold": round(thresh_lasso, 4),
+    }
+)
 six_results.append(lasso_metrics)
 six_model_objs["six_lasso"] = lasso_final
 six_thresholds["six_lasso"] = thresh_lasso
@@ -323,17 +357,20 @@ six_thresholds["six_lasso"] = thresh_lasso
 # Save LASSO coefficients
 coefs = lasso_final.coef_[0]
 nz = (np.abs(coefs) > 1e-8).astype(int)
-lasso_coef_df = pd.DataFrame({
-    "Feature": BIOMARKERS,
-    "Coefficient": coefs,
-    "Abs_coefficient": np.abs(coefs),
-    "Selected_nonzero": nz,
-})
+lasso_coef_df = pd.DataFrame(
+    {
+        "Feature": BIOMARKERS,
+        "Coefficient": coefs,
+        "Abs_coefficient": np.abs(coefs),
+        "Selected_nonzero": nz,
+    }
+)
 lasso_coef_df.to_csv(OUT_DIR / "table4_step3_six_lasso_coefficients.csv", index=False)
 print("  Saved table4_step3_six_lasso_coefficients.csv")
 
 # ---- B. Random Forest ----
 print("  Training Six-biomarker Random Forest...")
+
 
 def make_rf():
     return RandomForestClassifier(
@@ -345,6 +382,7 @@ def make_rf():
         random_state=RANDOM_STATE,
     )
 
+
 oof_rf, thresh_rf = oof_threshold_selection_any(make_rf, X_train, y_train)
 print(f"    Threshold (Youden): {thresh_rf:.4f}")
 
@@ -354,13 +392,15 @@ te_prob_rf = rf_final.predict_proba(X_test)[:, 1]
 te_pred_rf = (te_prob_rf >= thresh_rf).astype(int)
 
 rf_metrics = evaluate_model(y_test, te_pred_rf, te_prob_rf)
-rf_metrics.update({
-    "Model": "Six_RF",
-    "Feature_group": "Six",
-    "Features": "IL6+IL10+TNFalpha+CRP+ACTH+CORT",
-    "Best_C": "NA",
-    "Threshold": round(thresh_rf, 4),
-})
+rf_metrics.update(
+    {
+        "Model": "Six_RF",
+        "Feature_group": "Six",
+        "Features": "IL6+IL10+TNFalpha+CRP+ACTH+CORT",
+        "Best_C": "NA",
+        "Threshold": round(thresh_rf, 4),
+    }
+)
 six_results.append(rf_metrics)
 six_model_objs["six_rf"] = rf_final
 six_thresholds["six_rf"] = thresh_rf
@@ -391,13 +431,15 @@ if HAS_XGBOOST:
     te_pred_xgb = (te_prob_xgb >= thresh_xgb).astype(int)
 
     xgb_metrics = evaluate_model(y_test, te_pred_xgb, te_prob_xgb)
-    xgb_metrics.update({
-        "Model": "Six_XGBoost",
-        "Feature_group": "Six",
-        "Features": "IL6+IL10+TNFalpha+CRP+ACTH+CORT",
-        "Best_C": "NA",
-        "Threshold": round(thresh_xgb, 4),
-    })
+    xgb_metrics.update(
+        {
+            "Model": "Six_XGBoost",
+            "Feature_group": "Six",
+            "Features": "IL6+IL10+TNFalpha+CRP+ACTH+CORT",
+            "Best_C": "NA",
+            "Threshold": round(thresh_xgb, 4),
+        }
+    )
     six_results.append(xgb_metrics)
     six_model_objs["six_xgboost"] = xgb_final
     six_thresholds["six_xgboost"] = thresh_xgb
@@ -413,9 +455,22 @@ perf_df = pd.DataFrame(all_results)
 
 # Reorder columns
 col_order = [
-    "Model", "Feature_group", "Features", "Best_C", "Threshold",
-    "ROC_AUC", "PR_AUC", "Accuracy", "Sensitivity", "Specificity",
-    "Precision", "F1", "TN", "FP", "FN", "TP",
+    "Model",
+    "Feature_group",
+    "Features",
+    "Best_C",
+    "Threshold",
+    "ROC_AUC",
+    "PR_AUC",
+    "Accuracy",
+    "Sensitivity",
+    "Specificity",
+    "Precision",
+    "F1",
+    "TN",
+    "FP",
+    "FN",
+    "TP",
 ]
 perf_df = perf_df[col_order]
 perf_df.to_csv(OUT_DIR / "table3_step3_model_performance.csv", index=False)
@@ -424,10 +479,12 @@ print("\n=== Saved table3_step3_model_performance.csv ===")
 # ---------------------------------------------------------------------------
 # Test predictions
 # ---------------------------------------------------------------------------
-pred_df = pd.DataFrame({
-    "sample_index": range(len(test_df)),
-    "Anxiety_14": y_test.values,
-})
+pred_df = pd.DataFrame(
+    {
+        "sample_index": range(len(test_df)),
+        "Anxiety_14": y_test.values,
+    }
+)
 
 # Single-biomarker models
 for feat in BIOMARKERS:
@@ -459,12 +516,9 @@ pred_df.to_csv(OUT_DIR / "step3_test_predictions.csv", index=False)
 print("Saved step3_test_predictions.csv")
 
 # ---------------------------------------------------------------------------
-# Plotting: ROC & PR curves
+# Plotting: ROC & PR curves (Publication Quality)
 # ---------------------------------------------------------------------------
-# Font setup: Times New Roman
-plt.rcParams["font.family"] = "serif"
-plt.rcParams["font.serif"] = ["Times New Roman"]
-plt.rcParams["mathtext.fontset"] = "stix"
+apply_publication_style()
 
 # Collect test probabilities for curves
 curve_data = {}
@@ -480,47 +534,60 @@ curve_data["Six_RF"] = te_prob_rf
 if xgboost_ran:
     curve_data["Six_XGBoost"] = te_prob_xgb
 
-colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728"]
+# Use Cell Metabolism biomedical palette (MODEL_COLORS)
+plot_colors = {
+    best_single_name: MODEL_COLORS.get(best_single_name, BIOMED_PALETTE['mid_gray']),
+    "Six_LASSO": MODEL_COLORS['Six_LASSO'],    # Light gray
+    "Six_RF": MODEL_COLORS['Six_RF'],          # Muted purple
+    "Six_XGBoost": MODEL_COLORS['Six_XGBoost'], # Deep slate blue (best)
+}
 
 # --- ROC Curves ---
-fig, ax = plt.subplots(figsize=(7, 7))
-for i, (label, prob) in enumerate(curve_data.items()):
+fig, ax = plt.subplots(figsize=(5, 4.5))
+for label, prob in curve_data.items():
     fpr, tpr, _ = roc_curve(y_test, prob)
     auc_val = roc_auc_score(y_test, prob)
-    ax.plot(fpr, tpr, label=f"{label} (AUC={auc_val:.3f})", color=colors[i], linewidth=1.5)
-ax.plot([0, 1], [0, 1], "k--", linewidth=0.8, alpha=0.5)
-ax.set_xlabel("1 - Specificity", fontsize=12)
-ax.set_ylabel("Sensitivity", fontsize=12)
-ax.set_title("ROC Curves — Step 3", fontsize=14, fontweight="bold")
-ax.legend(loc="lower right", fontsize=10)
+    color = plot_colors.get(label, BIOMED_PALETTE['deep_blue'])  # Default to deep blue
+    ax.plot(fpr, tpr, label=f"{label} (AUC={auc_val:.3f})", color=color, linewidth=1.5)
+
+ax.plot([0, 1], [0, 1], color="gray", linestyle="--", linewidth=0.8, alpha=0.5)
+style_axis(
+    ax,
+    xlabel="False Positive Rate",
+    ylabel="True Positive Rate",
+    title="ROC Curves — Step 3",
+)
+add_legend(ax, loc="lower right")
 ax.set_xlim([-0.02, 1.02])
 ax.set_ylim([-0.02, 1.02])
-for spine in ax.spines.values():
-    spine.set_linewidth(0.5)
-ax.tick_params(labelsize=10)
+remove_top_right_spines(ax)
+add_light_grid(ax)
 fig.tight_layout()
-fig.savefig(OUT_DIR / "figure2_step3_roc_curves.png", dpi=300)
-plt.close(fig)
+save_figure(fig, OUT_DIR / "figure2_step3_roc_curves.png", dpi=DPI)
 print("Saved figure2_step3_roc_curves.png")
 
 # --- PR Curves ---
-fig, ax = plt.subplots(figsize=(7, 7))
-for i, (label, prob) in enumerate(curve_data.items()):
+fig, ax = plt.subplots(figsize=(5, 4.5))
+for label, prob in curve_data.items():
     precision, recall, _ = precision_recall_curve(y_test, prob)
     pr_auc = average_precision_score(y_test, prob)
-    ax.plot(recall, precision, label=f"{label} (PR-AUC={pr_auc:.3f})", color=colors[i], linewidth=1.5)
-ax.set_xlabel("Recall", fontsize=12)
-ax.set_ylabel("Precision", fontsize=12)
-ax.set_title("PR Curves — Step 3", fontsize=14, fontweight="bold")
-ax.legend(loc="lower left", fontsize=10)
+    color = plot_colors.get(label, BIOMED_PALETTE['deep_blue'])  # Default to deep blue
+    ax.plot(
+        recall,
+        precision,
+        label=f"{label} (PR-AUC={pr_auc:.3f})",
+        color=color,
+        linewidth=1.5,
+    )
+
+style_axis(ax, xlabel="Recall", ylabel="Precision", title="PR Curves — Step 3")
+add_legend(ax, loc="lower left")
 ax.set_xlim([-0.02, 1.02])
 ax.set_ylim([-0.02, 1.02])
-for spine in ax.spines.values():
-    spine.set_linewidth(0.5)
-ax.tick_params(labelsize=10)
+remove_top_right_spines(ax)
+add_light_grid(ax)
 fig.tight_layout()
-fig.savefig(OUT_DIR / "figure3_step3_pr_curves.png", dpi=300)
-plt.close(fig)
+save_figure(fig, OUT_DIR / "figure3_step3_pr_curves.png", dpi=DPI)
 print("Saved figure3_step3_pr_curves.png")
 
 # ---------------------------------------------------------------------------
@@ -530,34 +597,46 @@ import pickle
 
 # Best single biomarker model
 with open(OUT_DIR / "model_best_single_biomarker.pkl", "wb") as f:
-    pickle.dump({
-        "model": best_single_model,
-        "feature": best_single_feat["Features"],
-        "threshold": best_single_threshold,
-    }, f)
+    pickle.dump(
+        {
+            "model": best_single_model,
+            "feature": best_single_feat["Features"],
+            "threshold": best_single_threshold,
+        },
+        f,
+    )
 
 # LASSO
 with open(OUT_DIR / "model_six_lasso.pkl", "wb") as f:
-    pickle.dump({
-        "model": six_model_objs["six_lasso"],
-        "threshold": six_thresholds["six_lasso"],
-        "best_C": best_C,
-    }, f)
+    pickle.dump(
+        {
+            "model": six_model_objs["six_lasso"],
+            "threshold": six_thresholds["six_lasso"],
+            "best_C": best_C,
+        },
+        f,
+    )
 
 # Random Forest
 with open(OUT_DIR / "model_six_random_forest.pkl", "wb") as f:
-    pickle.dump({
-        "model": six_model_objs["six_rf"],
-        "threshold": six_thresholds["six_rf"],
-    }, f)
+    pickle.dump(
+        {
+            "model": six_model_objs["six_rf"],
+            "threshold": six_thresholds["six_rf"],
+        },
+        f,
+    )
 
 # XGBoost
 if xgboost_ran:
     with open(OUT_DIR / "model_six_xgboost.pkl", "wb") as f:
-        pickle.dump({
-            "model": six_model_objs["six_xgboost"],
-            "threshold": six_thresholds["six_xgboost"],
-        }, f)
+        pickle.dump(
+            {
+                "model": six_model_objs["six_xgboost"],
+                "threshold": six_thresholds["six_xgboost"],
+            },
+            f,
+        )
 
 print("Saved model .pkl files.")
 
@@ -577,16 +656,26 @@ log_lines.append("")
 log_lines.append("--- M1: Single-biomarker LR models ---")
 for feat in BIOMARKERS:
     r = next(x for x in single_results if x["Features"] == feat)
-    log_lines.append(f"  LR_{feat}: Threshold={r['Threshold']:.4f}, ROC_AUC={r['ROC_AUC']:.4f}, PR_AUC={r['PR_AUC']:.4f}")
+    log_lines.append(
+        f"  LR_{feat}: Threshold={r['Threshold']:.4f}, ROC_AUC={r['ROC_AUC']:.4f}, PR_AUC={r['PR_AUC']:.4f}"
+    )
 log_lines.append("")
 log_lines.append("--- M2: Six-biomarker models ---")
-log_lines.append(f"  LASSO: best_C={best_C}, Threshold={thresh_lasso:.4f}, ROC_AUC={lasso_metrics['ROC_AUC']:.4f}, PR_AUC={lasso_metrics['PR_AUC']:.4f}")
-log_lines.append(f"  RF:    Threshold={thresh_rf:.4f}, ROC_AUC={rf_metrics['ROC_AUC']:.4f}, PR_AUC={rf_metrics['PR_AUC']:.4f}")
+log_lines.append(
+    f"  LASSO: best_C={best_C}, Threshold={thresh_lasso:.4f}, ROC_AUC={lasso_metrics['ROC_AUC']:.4f}, PR_AUC={lasso_metrics['PR_AUC']:.4f}"
+)
+log_lines.append(
+    f"  RF:    Threshold={thresh_rf:.4f}, ROC_AUC={rf_metrics['ROC_AUC']:.4f}, PR_AUC={rf_metrics['PR_AUC']:.4f}"
+)
 if xgboost_ran:
-    log_lines.append(f"  XGBoost: Threshold={thresh_xgb:.4f}, ROC_AUC={xgb_metrics['ROC_AUC']:.4f}, PR_AUC={xgb_metrics['PR_AUC']:.4f}")
+    log_lines.append(
+        f"  XGBoost: Threshold={thresh_xgb:.4f}, ROC_AUC={xgb_metrics['ROC_AUC']:.4f}, PR_AUC={xgb_metrics['PR_AUC']:.4f}"
+    )
 log_lines.append("")
 log_lines.append(f"XGBoost ran successfully: {xgboost_ran}")
-log_lines.append(f"Best single biomarker: {best_single_name} (ROC_AUC={best_single_feat['ROC_AUC']:.4f})")
+log_lines.append(
+    f"Best single biomarker: {best_single_name} (ROC_AUC={best_single_feat['ROC_AUC']:.4f})"
+)
 log_lines.append("")
 log_lines.append("=" * 60)
 log_lines.append("Step 3 finished.")
@@ -602,5 +691,5 @@ print(log_text)
 # =============================================================================
 # Final print
 # =============================================================================
-print(f"\nStep 3 finished.")
+print("\nStep 3 finished.")
 print(f"Results saved to {OUT_DIR}\\")

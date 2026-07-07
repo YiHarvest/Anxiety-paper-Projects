@@ -3,17 +3,28 @@ Step 2: Blood biomarker preprocessing, descriptive statistics, and ABIS index ca
 Anxiety binary classification experiment.
 """
 
-import sys
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from scipy.stats import mannwhitneyu
 import pickle
-import logging
+
+# Import publication-quality plotting utilities
+from utils_plotting import (
+    apply_publication_style,
+    save_figure,
+    GROUP_COLORS,
+    BIOMED_PALETTE,
+    remove_top_right_spines,
+    add_light_grid,
+    style_axis,
+    DPI,
+)
 
 # ============================================================
 # Path configuration
@@ -22,8 +33,8 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 INPUT_DIR = PROJECT_ROOT / "dataset" / "dataset"
 OUTPUT_DIR = PROJECT_ROOT / "output" / "step2_preprocess_abis"
 
-TRAIN_PATH = INPUT_DIR / "anxiety_bio15_seed284_train_sorted_by_difficulty.csv"
-TEST_PATH = INPUT_DIR / "anxiety_bio15_seed284_test_sorted_by_difficulty.csv"
+TRAIN_PATH = INPUT_DIR / "anxiety_train.csv"
+TEST_PATH = INPUT_DIR / "anxiety_test.csv"
 
 # ============================================================
 # Column definitions
@@ -86,6 +97,7 @@ LOG_PATH = OUTPUT_DIR / "step2_log.txt"
 # We'll set up the logger after creating the output dir, but collect log lines in a list first.
 log_lines = []
 
+
 def log(msg: str):
     """Record a log message (will be written to file at the end)."""
     log_lines.append(msg)
@@ -139,10 +151,12 @@ def main():
             "Anxiety_1_ratio": round(ratio, 4),
         }
 
-    table1 = pd.DataFrame([
-        make_dist_table(train, "train"),
-        make_dist_table(test, "test"),
-    ])
+    table1 = pd.DataFrame(
+        [
+            make_dist_table(train, "train"),
+            make_dist_table(test, "test"),
+        ]
+    )
     table1_path = OUTPUT_DIR / "table1_split_distribution_check.csv"
     table1.to_csv(table1_path, index=False)
     log(f"Saved: {table1_path}")
@@ -161,16 +175,18 @@ def main():
             stat, p = mannwhitneyu(g0, g1, alternative="two-sided")
         except ValueError:
             p = np.nan
-        desc_rows.append({
-            "variable": var,
-            "group0_median": g0.median(),
-            "group0_Q1": g0.quantile(0.25),
-            "group0_Q3": g0.quantile(0.75),
-            "group1_median": g1.median(),
-            "group1_Q1": g1.quantile(0.25),
-            "group1_Q3": g1.quantile(0.75),
-            "p_value": p,
-        })
+        desc_rows.append(
+            {
+                "variable": var,
+                "group0_median": g0.median(),
+                "group0_Q1": g0.quantile(0.25),
+                "group0_Q3": g0.quantile(0.75),
+                "group1_median": g1.median(),
+                "group1_Q1": g1.quantile(0.25),
+                "group1_Q3": g1.quantile(0.75),
+                "p_value": p,
+            }
+        )
 
     table2 = pd.DataFrame(desc_rows)
     table2_path = OUTPUT_DIR / "table2_biomarker_description.csv"
@@ -235,8 +251,12 @@ def main():
     train_preprocessed = train_imputed.copy()
     test_preprocessed = test_imputed.copy()
     for var in ALL_BLOOD_FEATURES:
-        train_preprocessed[var] = (train_preprocessed[var] - train_mean[var]) / train_std[var]
-        test_preprocessed[var] = (test_preprocessed[var] - train_mean[var]) / train_std[var]
+        train_preprocessed[var] = (
+            train_preprocessed[var] - train_mean[var]
+        ) / train_std[var]
+        test_preprocessed[var] = (test_preprocessed[var] - train_mean[var]) / train_std[
+            var
+        ]
 
     # ---- 6. Save preprocessed data ----
     # Full versions
@@ -259,14 +279,28 @@ def main():
     # ABIS = mean[z(log IL6), z(log TNFalpha), z(log CRP)] - z(log IL10) + z(log CORT) - z(log ACTH)
     # Using the already-standardized raw biomarkers from step 5.
     pro_inflammatory_mean = (
-        train_preprocessed["IL6"] + train_preprocessed["TNFalpha"] + train_preprocessed["CRP"]
+        train_preprocessed["IL6"]
+        + train_preprocessed["TNFalpha"]
+        + train_preprocessed["CRP"]
     ) / 3.0
-    abis_train = pro_inflammatory_mean - train_preprocessed["IL10"] + train_preprocessed["CORT"] - train_preprocessed["ACTH"]
+    abis_train = (
+        pro_inflammatory_mean
+        - train_preprocessed["IL10"]
+        + train_preprocessed["CORT"]
+        - train_preprocessed["ACTH"]
+    )
 
     pro_inflammatory_mean_test = (
-        test_preprocessed["IL6"] + test_preprocessed["TNFalpha"] + test_preprocessed["CRP"]
+        test_preprocessed["IL6"]
+        + test_preprocessed["TNFalpha"]
+        + test_preprocessed["CRP"]
     ) / 3.0
-    abis_test = pro_inflammatory_mean_test - test_preprocessed["IL10"] + test_preprocessed["CORT"] - test_preprocessed["ACTH"]
+    abis_test = (
+        pro_inflammatory_mean_test
+        - test_preprocessed["IL10"]
+        + test_preprocessed["CORT"]
+        - test_preprocessed["ACTH"]
+    )
 
     log(f"ABIS training set: mean={abis_train.mean():.6f}, std={abis_train.std():.6f}")
     log(f"ABIS test set: mean={abis_test.mean():.6f}, std={abis_test.std():.6f}")
@@ -312,16 +346,17 @@ def main():
         f.write("\n".join(log_lines))
     print(f"Log saved to: {LOG_PATH}")
 
-    # ---- 10. ABIS distribution plot ----
-    plt.rcParams["font.family"] = "Times New Roman"
-    plt.rcParams["font.size"] = 12
+    # ---- 10. ABIS distribution plot (Publication Quality) ----
+    apply_publication_style()
 
-    fig, ax = plt.subplots(figsize=(8, 6))
+    fig, ax = plt.subplots(figsize=(4.5, 3.5))
 
     g0_abis = train_abis.loc[train_abis[TARGET] == 0, "ABIS"]
     g1_abis = train_abis.loc[train_abis[TARGET] == 1, "ABIS"]
 
     box_data = [g0_abis.values, g1_abis.values]
+
+    # Use colorblind-safe colors (Okabe-Ito: Orange and Sky Blue)
     bp = ax.boxplot(
         box_data,
         tick_labels=["Anxiety=0", "Anxiety=1"],
@@ -330,9 +365,13 @@ def main():
         showfliers=True,
     )
 
-    # Box colors
-    bp["boxes"][0].set_facecolor("#4ECDC4")
-    bp["boxes"][1].set_facecolor("#FF6B6B")
+    # Box colors - Cell Metabolism biomedical palette
+    # Use GROUP_COLORS for Anxiety vs Non-Anxiety
+    bp["boxes"][0].set_facecolor(GROUP_COLORS['No_Anxiety'])  # Deep slate blue
+    bp["boxes"][1].set_facecolor(GROUP_COLORS['Anxiety'])     # Muted mauve
+    bp["boxes"][0].set_alpha(0.45)  # Semi-transparent fill
+    bp["boxes"][1].set_alpha(0.45)
+
     for median in bp["medians"]:
         median.set_color("black")
         median.set_linewidth(1.5)
@@ -342,19 +381,25 @@ def main():
         jitter = np.random.normal(i + 1, 0.04, size=len(data_vals))
         non_nan = ~np.isnan(data_vals)
         ax.scatter(
-            jitter[non_nan], np.array(data_vals)[non_nan],
-            alpha=0.3, s=10, color="black", zorder=3,
+            jitter[non_nan],
+            np.array(data_vals)[non_nan],
+            alpha=0.3,
+            s=10,
+            color="black",
+            zorder=3,
         )
 
-    ax.set_ylabel("ABIS", fontfamily="Times New Roman")
-    ax.set_title("ABIS Distribution by Anxiety Status (Training Set)", fontfamily="Times New Roman")
-    ax.tick_params(axis="both", labelsize=11)
+    style_axis(
+        ax, ylabel="ABIS", title="ABIS Distribution by Anxiety Status (Training Set)"
+    )
+
+    remove_top_right_spines(ax)
+    add_light_grid(ax)
 
     fig.tight_layout()
 
     png_path = OUTPUT_DIR / "figure1_abis_distribution.png"
-    fig.savefig(png_path, dpi=150)
-    plt.close(fig)
+    save_figure(fig, png_path, dpi=DPI)
     log(f"Saved: {png_path}")
 
     # ---- 12. Done ----
