@@ -1,0 +1,14 @@
+version: 1.0.0
+biomarkers:
+  - {id: IL6, name: Interleukin-6, entity_type: cytokine, measurement_type: raw, system: Inflammation}
+  - {id: IL10, name: Interleukin-10, entity_type: cytokine, measurement_type: raw, system: Inflammation}
+  - {id: TNFalpha, name: Tumor necrosis factor alpha, entity_type: cytokine, measurement_type: raw, system: Inflammation}
+  - {id: CRP, name: C-reactive protein, entity_type: acute_phase_protein, measurement_type: raw, system: Inflammation}
+  - {id: ACTH, name: Adrenocorticotropic hormone, entity_type: hormone, measurement_type: raw, system: HPA_Axis}
+  - {id: CORT, name: Cortisol, entity_type: hormone, measurement_type: raw, system: HPA_Axis}
+systems:
+  - {id: Inflammation, name: Inflammation}
+  - {id: HPA_Axis, name: Hypothalamic-pituitary-adrenal axis}
+  - {id: Cross_System, name: Cross-system interaction}
+diseases:
+  - {id: ANXIETY, name: Anxiety, outcome_column: Anxiety_14}

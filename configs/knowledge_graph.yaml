@@ -1,0 +1,32 @@
+schema_version: 1.1.0
+enabled: true
+driver:
+  uri_env: NEO4J_URI
+  username_env: NEO4J_USERNAME
+  password_env: NEO4J_PASSWORD
+  database_env: NEO4J_DATABASE
+  default_database: neo4j
+  connection_timeout_seconds: 10
+  batch_size: 500
+security:
+  llm_access: read_only
+  deterministic_writers_only: true
+  allowed_llm_queries:
+    - get_patient_evidence_subgraph
+    - get_interaction_decision
+    - get_supporting_studies
+    - get_conflicting_studies
+    - get_prediction_provenance
+  forbidden_llm_actions:
+    - write_evidence
+    - change_interaction_status
+    - delete_relationship
+    - change_model_threshold
+snapshot:
+  include_patient_labels_before_final_evaluation: false
+  patient_subgraphs_enabled: false
+cohort_associations:
+  spearman_min_absolute: 0.2
+  partial_min_absolute: 0.1
+  graphical_lasso_alpha: 0.05
+  numerical_epsilon: 1.0e-8

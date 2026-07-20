@@ -1,12 +1,19 @@
 # Data directories (user specified)
 dataset/
 output/
+artifacts/
+
+# Local credentials (never commit)
+.env
+.env.*
+!.env.example
 
 # Lock files
 uv.lock
 
 # Virtual environment
 .venv/
+.venv-hemozero/
 venv/
 env/
 
@@ -49,10 +56,11 @@ Thumbs.db
 # Logs
 *.log
 
+# Local MLflow SQLite state (run evidence is stored separately under artifacts/runs)
+artifacts/mlflow.db
+artifacts/mlflow.db-shm
+artifacts/mlflow.db-wal
+
 # Model files (optional - uncomment if needed)
 # *.pkl
 # *.joblib
-配色修复总结.md
-.gitignore
-figures/
-中文乱码修复验证.md

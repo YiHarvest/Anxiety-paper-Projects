@@ -1,0 +1,6 @@
+registry_version: 2026-07-19
+review_status: awaiting_manual_curation
+
+# Only manually reviewed assertions belong here. Do not add placeholder PMIDs,
+# inferred mechanisms, or automatically extracted literature.
+evidence: []

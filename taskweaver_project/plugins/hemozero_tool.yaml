@@ -1,0 +1,26 @@
+name: hemozero_tool
+enabled: true
+required: false
+description: >-
+  Execute one read-only query over an audit-passed exported HemoZero evidence snapshot.
+  This plugin cannot write evidence, change decisions, delete relationships, train models,
+  or change thresholds. The run directory must be under artifacts/runs.
+examples:
+  result_json = hemozero_tool("get_interaction_decision", "{\"pair_id\":\"CORT::IL6\"}", "artifacts/runs/my-run")
+parameters:
+  - name: tool_name
+    type: str
+    required: true
+    description: One of the five allowed read-only knowledge query names.
+  - name: arguments_json
+    type: str
+    required: true
+    description: Tool arguments encoded as a JSON object.
+  - name: run_dir
+    type: str
+    required: true
+    description: Existing HemoZero run directory under artifacts/runs.
+returns:
+  - name: result_json
+    type: str
+    description: Serialized audit-passed evidence query result.

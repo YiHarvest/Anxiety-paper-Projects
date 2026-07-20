@@ -1,0 +1,27 @@
+version: 1
+description: Knowledge-constrained HemoZero workflow; terminal manifest and freeze remain PiRunner-owned.
+stages:
+  inspect_dataset: {tool: inspect_dataset, requires: []}
+  validate_ratios: {tool: validate_ratios, requires: [inspect_dataset]}
+  build_lineage_graph: {tool: build_lineage_graph, requires: [validate_ratios]}
+  kg_preflight: {tool: kg_preflight, requires: [build_lineage_graph]}
+  kg_initialize_schema: {tool: kg_initialize_schema, requires: [kg_preflight]}
+  kg_sync_lineage: {tool: kg_sync_lineage, requires: [kg_initialize_schema, build_lineage_graph]}
+  kg_import_evidence: {tool: kg_import_evidence, requires: [kg_sync_lineage]}
+  create_cv_splits: {tool: create_cv_splits, requires: [kg_import_evidence]}
+  kg_build_fold_associations: {tool: kg_build_fold_associations, requires: [create_cv_splits, kg_sync_lineage]}
+  train_baselines: {tool: train_baselines, requires: [create_cv_splits]}
+  train_tabpfn_views: {tool: train_tabpfn_views, requires: [create_cv_splits]}
+  hemzero_fusion: {tool: hemzero_fusion, requires: [train_tabpfn_views]}
+  run_tabdistill: {tool: run_tabdistill, requires: [train_tabpfn_views, kg_build_fold_associations]}
+  aggregate_interaction_stability: {tool: aggregate_interaction_stability, requires: [run_tabdistill]}
+  kg_assess_interactions:
+    tool: kg_assess_interactions
+    requires: [aggregate_interaction_stability, build_lineage_graph, kg_import_evidence]
+  train_kg_ebm_students: {tool: train_kg_ebm_students, requires: [kg_assess_interactions, hemzero_fusion]}
+  pysr_distillation: {tool: pysr_distillation, requires: [hemzero_fusion]}
+  evaluation: {tool: evaluation, requires: [train_baselines, train_kg_ebm_students, pysr_distillation, hemzero_fusion]}
+  kg_build_patient_subgraph: {tool: kg_build_patient_subgraph, requires: [evaluation, kg_assess_interactions]}
+  kg_export_snapshot: {tool: kg_export_snapshot, requires: [kg_build_patient_subgraph]}
+  kg_audit: {tool: kg_audit, requires: [kg_export_snapshot, evaluation]}
+  reporting: {tool: reporting, requires: [kg_audit]}

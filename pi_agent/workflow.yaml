@@ -1,0 +1,2 @@
+# Canonical workflow: ../configs/workflow.yaml
+include: ../configs/workflow.yaml

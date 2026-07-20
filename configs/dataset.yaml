@@ -1,0 +1,20 @@
+train_path: dataset/dataset/anxiety_train.csv
+test_path: dataset/dataset/anxiety_test.csv
+allow_exact_feature_vector_overlap: true
+overlap_authorization: user_approved_raw_data_sensitivity_run
+id_column: CaseNumber
+target_column: Anxiety_14
+excluded_columns:
+  - Chronic_pain
+  - Depression_18
+raw_features: [IL6, IL10, TNFalpha, CRP, ACTH, CORT]
+ratio_features:
+  - IL6/IL10
+  - TNFalpha/IL10
+  - CRP/IL10
+  - CORT/ACTH
+  - CORT/IL6
+  - CORT/CRP
+  - IL6/TNFalpha
+  - CRP/IL6
+  - ACTH/IL6
