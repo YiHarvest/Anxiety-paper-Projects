@@ -1,0 +1,123 @@
+digraph HemoZeroProjectFlow {
+  graph [
+    rankdir=TB,
+    newrank=true,
+    bgcolor="#ffffff",
+    pad="0.25",
+    nodesep="0.35",
+    ranksep="0.65",
+    splines=ortho,
+    fontname="Noto Sans CJK SC",
+    fontsize=18,
+    label="HemoZero 端到端项目流程（Knowledge Graph Workflow）",
+    labelloc=t
+  ];
+  node [
+    shape=box,
+    style="rounded,filled",
+    fontname="Noto Sans CJK SC",
+    fontsize=10,
+    color="#334155",
+    fontcolor="#0f172a",
+    penwidth=1.2,
+    margin="0.12,0.08"
+  ];
+  edge [
+    color="#64748b",
+    fontname="Noto Sans CJK SC",
+    fontsize=9,
+    arrowsize=0.7,
+    penwidth=1.1
+  ];
+
+  config [label="配置 SSOT\ndataset · ratios · models\nexperiment · KG · policy", shape=cylinder, fillcolor="#e2e8f0"];
+  input [label="输入数据\n开发集 + 独立留出集", shape=folder, fillcolor="#dbeafe"];
+
+  subgraph cluster_guard {
+    label="A. 数据与防泄漏门禁";
+    color="#93c5fd";
+    style="rounded";
+    inspect [label="inspect_dataset\n模式 / ID / 指纹 / 重叠", fillcolor="#dbeafe"];
+    ratios [label="validate_ratios\n重算并核验 9 个比值", fillcolor="#dbeafe"];
+    lineage [label="build_lineage_graph\nNetworkX: 15 节点 / 78 边", fillcolor="#dbeafe"];
+    split [label="create_cv_splits\n5 repeats × 5 folds", fillcolor="#dbeafe"];
+    { rank=same; inspect; ratios; lineage; split; }
+  }
+
+  subgraph cluster_kg {
+    label="B. Neo4j 知识图谱与策略";
+    color="#5eead4";
+    style="rounded";
+    kgpre [label="KG preflight + schema 1.1\n连接 / 约束 / 版本", fillcolor="#ccfbf1"];
+    kgsync [label="同步谱系与生物实体\nBiomarker · Ratio · System · Disease", fillcolor="#ccfbf1"];
+    evidence [label="人工审核证据注册表\nStudy + EvidenceAssertion", fillcolor="#ccfbf1"];
+    assoc [label="折内关联图\nSpearman / Partial / Graphical Lasso", fillcolor="#ccfbf1"];
+    stability [label="InteractionSummary\n频率 + 方向一致性", fillcolor="#ccfbf1"];
+    policy [label="PolicyEngine\n机械性 + 稳定性 + 证据\n六类固定决策", shape=hexagon, fillcolor="#99f6e4"];
+    { rank=same; kgpre; kgsync; evidence; assoc; stability; policy; }
+  }
+
+  subgraph cluster_models {
+    label="C. 建模与蒸馏";
+    color="#c4b5fd";
+    style="rounded";
+    baseline [label="传统基线\nLR / ElasticNet / SVM / RF", fillcolor="#ede9fe"];
+    tabpfn [label="TabPFN 三视图教师\nraw / ratio / full", fillcolor="#ede9fe"];
+    fusion [label="HemoZero 门控融合\n质量 × 稳定性 × 逆方差", fillcolor="#ede9fe"];
+    tabdistill [label="TabDistill\n折内候选交互", fillcolor="#ede9fe"];
+    ebm [label="EBM 消融学生\nM0 / M1 / M2 / M3-C / M3-D", fillcolor="#ede9fe"];
+    pysr [label="PySR\nDirect / Distilled 公式", fillcolor="#ede9fe"];
+    { rank=same; baseline; tabpfn; fusion; tabdistill; ebm; pysr; }
+  }
+
+  subgraph cluster_eval {
+    label="D. 最终评估、证据与冻结";
+    color="#fbbf24";
+    style="rounded";
+    eval [label="统一最终评估\nOOF + independent holdout\nBootstrap + selective prediction", fillcolor="#fef3c7"];
+    patient [label="患者证据子图\n仅允许在最终评估后生成", fillcolor="#fef3c7"];
+    snapshot [label="KG 可移植快照\n节点 + 谱系 + run relationships", fillcolor="#fef3c7"];
+    audit [label="KG audit\n哈希 / run scope / 边完整性\n留出标签隔离", shape=diamond, fillcolor="#fde68a"];
+    report [label="报告与模型卡\nREPORT · TRIPOD-AI · metrics", fillcolor="#fef3c7"];
+    frozen [label="manifest.json + _FROZEN\nSHA-256 不可变运行", shape=folder, fillcolor="#fecaca", color="#dc2626"];
+    { rank=same; eval; patient; snapshot; audit; report; frozen; }
+  }
+
+  neo4j [label="Neo4j 5.26\n证据与 provenance 持久化\n不负责批准/拒绝", shape=cylinder, fillcolor="#cffafe", color="#0891b2"];
+  artifacts [label="artifacts/runs/<run_id>/\ndataset · predictions · models\nknowledge_graph · reports · evidence", shape=cylinder, fillcolor="#e2e8f0"];
+
+  config -> inspect;
+  config -> kgpre;
+  config -> tabpfn;
+  input -> inspect -> ratios -> lineage -> split;
+
+  lineage -> kgpre -> kgsync -> evidence;
+  split -> assoc;
+  kgsync -> assoc;
+  kgsync -> neo4j [dir=both, xlabel="MERGE / read"];
+  evidence -> neo4j;
+  assoc -> neo4j;
+
+  split -> baseline;
+  split -> tabpfn;
+  tabpfn -> fusion;
+  tabpfn -> tabdistill;
+  tabdistill -> stability;
+  stability -> neo4j;
+  lineage -> policy;
+  stability -> policy;
+  neo4j -> policy [xlabel="只读证据"];
+  policy -> ebm;
+  fusion -> pysr;
+
+  baseline -> eval;
+  fusion -> eval;
+  ebm -> eval;
+  pysr -> eval;
+  eval -> patient -> snapshot -> audit -> report -> frozen;
+  neo4j -> snapshot;
+  eval -> artifacts;
+  snapshot -> artifacts;
+  report -> artifacts;
+  artifacts -> frozen;
+}

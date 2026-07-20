@@ -1,99 +1,124 @@
-# 焦虑血液生物标志物二分类预测
+# HemoZero
 
-基于外周血生物标志物的焦虑二分类预测实验。  
-结局变量：`Anxiety_14` | 随机种子：`random_state=42` | 数据集：481 例（训练 336，测试 145）
+HemoZero is a derivation-aware multi-view research system for small-sample anxiety classification
+from six measured blood biomarkers and nine deterministic ratios.
 
-## 项目结构
+## Architecture
 
-```
-D:\sleep\AnxietyProjects\
-├── dataset\dataset\              # 原始数据
-│   ├── anxiety_bio15_train.csv
-│   └── anxiety_bio15_test.csv
-├── pyproject.toml                # 依赖 + 阿里云镜像
-├── step2_preprocess_abis.py      # Step 2：预处理 + ABIS 计算
-├── step3_single_six_models.py    # Step 3：单一指标 + 六指标模型
-├── step4_ratio_integrated_models.py  # Step 4：比值 + 整合模型
-├── step5_abis_bootstrap_compare.py   # Step 5：ABIS + Bootstrap + 核心对照
-├── step6_model_interpretation.py     # Step 6：模型解释（SHAP）
-├── step7_final_summary.py            # Step 7：最终汇总
-├── step8_calibration_dca_sensitivity.py  # Step 8：校准 + DCA + 稳健性
-├── README.md
-└── output\                        # 全部输出
-    ├── step2_preprocess_abis/
-    ├── step3_single_six_models/
-    ├── step4_ratio_integrated_models/
-    ├── step5_abis_bootstrap_compare/
-    ├── step6_model_interpretation/
-    ├── step7_final_summary/
-    └── step8_calibration_dca_sensitivity/
+![HemoZero end-to-end project workflow](docs/assets/hemozero_project_flow.svg)
+
+```text
+Pi Agent                 decides the next admissible stage
+  -> Tools               validate parameters and return typed ToolResult objects
+    -> src/hemzero       performs data, graph, modelling, fusion, and statistics
+      -> artifacts/runs  stores run-scoped evidence and a frozen SHA-256 manifest
 ```
 
-## 快速开始（3 步）
+Core dependencies are managed by uv. NetworkX owns the feature-lineage graph, InterpretML owns EBM,
+MLflow records experiment metadata in SQLite, and optional adapters integrate TabPFN, TabDistill,
+PySR, and TaskWeaver. Backend identity is enforced: unavailable TabPFN cannot be silently replaced
+by another estimator under the TabPFN name.
 
-```powershell
-# ① 安装 uv（如果没有）
-powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+An optional Knowledge-Constrained Distillation Layer keeps NetworkX as the deterministic lineage
+calculator and uses Neo4j only for evidence/provenance persistence. `PolicyEngine`, not Neo4j,
+classifies each TabDistill interaction before confirmatory and discovery EBM students are trained.
+The editable Graphviz source and detailed architecture notes are available in
+[`docs/assets/hemozero_project_flow.dot`](docs/assets/hemozero_project_flow.dot) and
+[`docs/PROJECT_OVERVIEW.md`](docs/PROJECT_OVERVIEW.md).
 
-# ② 进入项目 + 一键安装依赖（阿里云国内镜像，下载飞快）
-cd D:\sleep\AnxietyProjects
-uv sync
+## Setup and smoke test
 
-# ③ 一键运行全部（Step 2 ~ Step 8，约 20-30 分钟）
-uv run python step2_preprocess_abis.py; uv run python step3_single_six_models.py; uv run python step4_ratio_integrated_models.py; uv run python step5_abis_bootstrap_compare.py; uv run python step6_model_interpretation.py; uv run python step7_final_summary.py; uv run python step8_calibration_dca_sensitivity.py
+```bash
+uv sync --python 3.12
+uv run hemozero smoke
+uv run pytest -q
 ```
 
-```powershell
-cd D:\sleep\AnxietyProjects
+Optional backends:
 
-uv run python step2_preprocess_abis.py
-
-uv run python step3_single_six_models.py
-
-uv run python step4_ratio_integrated_models.py
-
-uv run python step5_abis_bootstrap_compare.py
-
-uv run python step6_model_interpretation.py
-
-uv run python step7_final_summary.py
-
-uv run python step8_calibration_dca_sensitivity.py
+```bash
+UV_PROJECT_ENVIRONMENT=.venv-hemozero uv sync \
+  --extra foundation --extra symbolic --extra agent --extra distill --python 3.12
 ```
 
-## 各步骤说明
+Add `--extra knowledge-graph` when running the Neo4j workflow.
 
-| Step | 脚本 | 内容 | 耗时 |
-|------|------|------|------|
-| 2 | `step2_preprocess_abis.py` | 预处理：中位数填补→log1p→winsorization→z-score→ABIS 计算 | < 30s |
-| 3 | `step3_single_six_models.py` | 6 个单一指标 LR + Six-LASSO/Six-RF/Six-XGBoost 模型 | < 30s |
-| 4 | `step4_ratio_integrated_models.py` | 9 项比值模型 + 15 项整合模型 (LASSO/RF/XGBoost) | < 1min |
-| 5 | `step5_abis_bootstrap_compare.py` | ABIS LR + Bootstrap 1000 CI + 核心模型对照表 | ~3min |
-| 6 | `step6_model_interpretation.py` | Built-in + Permutation + SHAP 特征重要性 | ~5min |
-| 7 | `step7_final_summary.py` | 最终汇总表、核心图表、论文 Results/Discussion 文本 | < 30s |
-| 8 | `step8_calibration_dca_sensitivity.py` | 校准曲线、DCA、1000 次重复随机划分稳健性 | ~15-30min |
+This project pins `torch==2.9.1+cpu` to the official PyTorch CPU index. For the current 336-row
+training set, TabPFN is configured with four estimators, one preprocessing job, and CPU execution.
+Local model inference still requires one-time Prior Labs license acceptance. Set the key only in
+your shell (do not commit it):
 
-## 依赖说明
+```bash
+export TABPFN_TOKEN="<key copied after license acceptance>"
+.venv-hemozero/bin/python scripts/verify_optional_backends.py --tabpfn-fit
+```
 
-所有依赖在 `pyproject.toml` 中统一管理，`uv sync` 一键安装：
+Alternatively, fill the root `.env`, then load it before starting TaskWeaver:
 
-| 包 | 版本 | 用途 |
-|----|------|------|
-| pandas | ≥2.0 | 数据处理 |
-| numpy | ≥1.24 | 数值计算 |
-| scipy | ≥1.10 | 统计检验 |
-| scikit-learn | ≥1.3 | 机器学习模型 |
-| matplotlib | ≥3.7 | 可视化 |
-| xgboost | ≥2.0 | 梯度提升模型 |
-| shap | ≥0.42 | 模型解释 |
+```bash
+set -a
+source .env
+set +a
+.venv-hemozero/bin/taskweaver -p taskweaver_project chat
+```
 
-## 配置
+PySR uses Julia 1.10.11 at `~/.local/bin/julia`; `pysr_student.configure_julia()` selects it without
+requiring a global PATH change. A real backend smoke result is stored under
+`artifacts/backend-verification/pysr-smoke/`. It uses actual baseline OOF probabilities only to
+verify SymbolicRegression.jl and is not the final HemoZero score.
 
-- **结局变量**：`Anxiety_14`（二分类，1=焦虑阳性）
-- **随机种子**：`random_state=42`
-- **PyPI 镜像**：阿里云 `mirrors.aliyun.com/pypi/simple/`
-- **六项原始血液指标**：IL6、IL10、TNFalpha、CRP、ACTH、CORT
-- **九项比值指标**：IL6/IL10、TNFalpha/IL10、CRP/IL10、CORT/ACTH、CORT/IL6、CORT/CRP、IL6/TNFalpha、CRP/IL6、ACTH/IL6
-- **排他特征**：CaseNumber、Depression_18、Chronic_pain（不纳入模型）
-- 所有脚本必须从项目根目录 `D:\sleep\AnxietyProjects` 运行
+TaskWeaver is pinned to an official repository commit and initialized in `taskweaver_project/`.
+The `hemozero_tool` plugin validates run paths and exposes the deterministic HemoZero registry.
+An LLM-backed chat additionally requires a provider/model key in TaskWeaver's local configuration.
 
+Configure the local `Clouddelta/tab-distill` checkout in `configs/models.yaml`. The adapter runs its
+SPEX implementation in a separate process because that repository exposes a top-level package named
+`src`, which would otherwise collide with this project's src layout.
+
+## Main directories
+
+- `pi_agent/`: policy, state, tool registry, and evidence-only reader.
+- `tools/`: thin validated interfaces; scientific calculations do not live here.
+- `src/hemzero/`: pure algorithm and statistics modules.
+- `configs/`: dataset, formula, model, experiment, workflow, and audit SSOT.
+- `artifacts/runs/<run_id>/`: immutable evidence after `_FROZEN` is created.
+- `scripts/`: full run, smoke test, and isolated TabDistill worker.
+- `taskweaver_project/`: initialized TaskWeaver application and HemoZero tool bridge.
+- `src/hemzero/knowledge_graph/`: Neo4j schema, lineage sync, evidence, policy inputs, snapshots and audit.
+
+Only the layered `hemzero` implementation is retained. Historical proxy-model code and outputs have
+been removed to prevent accidental reuse or confusion with the real TabPFN workflow.
+
+## Complete primary experiment
+
+The recommended primary analysis uses the leak-free files under
+`dataset/processed/hemozero_kg_20260719/`. The current `configs/dataset.yaml` intentionally points
+to the 336-row raw sensitivity input and records authorized exact feature-vector overlap; it must not
+be interpreted as an independent external-validation setup. Both profiles use 5 repeated outer CV
+runs × 5 folds, four TabPFN ensemble members, fold-local multi-index TabDistill, repeated EBM
+students and 100-iteration PySR searches.
+
+```bash
+.venv-hemozero/bin/python scripts/run_complete_experiment.py
+```
+
+Resume an interrupted run without reusing completed stages:
+
+```bash
+.venv-hemozero/bin/python scripts/run_complete_experiment.py --resume <run_id>
+```
+
+## Knowledge-constrained experiment
+
+Configure `NEO4J_URI`, `NEO4J_USERNAME`, `NEO4J_PASSWORD`, and optionally `NEO4J_DATABASE` in the
+shell or local `.env`. External evidence is never fetched automatically: populate
+`configs/evidence_registry.yaml` only with manually reviewed assertions. Then run:
+
+```bash
+.venv-hemozero/bin/python scripts/run_kg_experiment.py --preflight-only
+.venv-hemozero/bin/python scripts/run_kg_experiment.py
+```
+
+The KG workflow writes a portable snapshot under `artifacts/runs/<run_id>/knowledge_graph/` before
+the existing run-level SHA-256 manifest is created. TaskWeaver is restricted to five read-only
+queries over audit-passed, frozen snapshots and cannot invoke graph writers or change decisions.

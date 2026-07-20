@@ -1,0 +1,12 @@
+version: 1.0.0
+min_frequency: 0.6
+min_direction_consistency: 0.6
+max_interactions: 2
+evidence_scope: direct_pair_only
+confirmatory_statuses: [retain_supported]
+discovery_statuses: [retain_supported, retain_discovery]
+conflict_statuses: [review_conflict]
+rejected_statuses:
+  - reject_mechanical
+  - reject_unstable
+  - reject_insufficient

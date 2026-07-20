@@ -1,0 +1,18 @@
+rules:
+  no_train_test_patient_overlap: fatal
+  no_test_tuning: fatal
+  no_global_interaction_search: fatal
+  no_global_formula_search: fatal
+  ratio_relative_tolerance: 1.0e-6
+  maximum_interaction_order: 2
+  maximum_selected_interactions: 2
+  require_backend_identity: true
+  require_artifact_hashes: true
+  require_oof_soft_labels: true
+  forbid_proxy_label_as_tabpfn: true
+  require_all_tabdistill_candidates_in_kg: true
+  require_policy_authority_outside_neo4j: true
+  require_fold_local_cohort_graph: true
+  require_manual_external_evidence: true
+  require_kg_snapshot_before_freeze: true
+  forbid_holdout_label_edges_before_final_evaluation: true

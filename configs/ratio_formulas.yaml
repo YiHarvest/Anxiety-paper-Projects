@@ -1,0 +1,9 @@
+IL6/IL10: {numerator: IL6, denominator: IL10}
+TNFalpha/IL10: {numerator: TNFalpha, denominator: IL10}
+CRP/IL10: {numerator: CRP, denominator: IL10}
+CORT/ACTH: {numerator: CORT, denominator: ACTH}
+CORT/IL6: {numerator: CORT, denominator: IL6}
+CORT/CRP: {numerator: CORT, denominator: CRP}
+IL6/TNFalpha: {numerator: IL6, denominator: TNFalpha}
+CRP/IL6: {numerator: CRP, denominator: IL6}
+ACTH/IL6: {numerator: ACTH, denominator: IL6}

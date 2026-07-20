@@ -1,0 +1,24 @@
+tabpfn:
+  package_min_version: 6.3.1
+  device: cpu
+  allow_cpu_large_dataset: false
+  max_cpu_rows_without_override: 1000
+  n_estimators: 4
+  streams: [raw, ratio, full]
+ebm:
+  max_interactions: 2
+  max_rounds: 1000
+  outer_bags: 8
+tabdistill:
+  repository: /home/yqy/Projects/tab-distill
+  reference_repository: https://github.com/Clouddelta/tab-distill
+  index_types: [fbii, fsii, stii, bii, sii, fourier, mobius]
+  sample_budget: 1000
+  max_order: 2
+pysr:
+  niterations: 100
+  maxsize: 20
+  maxdepth: 5
+  binary_operators: ["+", "-", "*", "/"]
+  unary_operators: [log, sqrt]
+  max_input_features: 4

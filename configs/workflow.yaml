@@ -1,0 +1,14 @@
+version: 1
+stages:
+  inspect_dataset: {tool: inspect_dataset, requires: []}
+  validate_ratios: {tool: validate_ratios, requires: [inspect_dataset]}
+  build_lineage_graph: {tool: build_lineage_graph, requires: [validate_ratios]}
+  create_cv_splits: {tool: create_cv_splits, requires: [build_lineage_graph]}
+  train_baselines: {tool: train_baselines, requires: [create_cv_splits]}
+  train_tabpfn_views: {tool: train_tabpfn_views, requires: [create_cv_splits]}
+  hemzero_fusion: {tool: hemzero_fusion, requires: [train_tabpfn_views]}
+  tabdistill_ebm: {tool: tabdistill_ebm, requires: [train_tabpfn_views, build_lineage_graph]}
+  pysr_distillation: {tool: pysr_distillation, requires: [hemzero_fusion]}
+  evaluation: {tool: evaluation, requires: [train_baselines, hemzero_fusion]}
+  audit: {tool: audit, requires: [evaluation]}
+  reporting: {tool: reporting, requires: [audit]}

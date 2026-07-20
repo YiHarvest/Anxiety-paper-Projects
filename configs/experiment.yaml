@@ -1,0 +1,24 @@
+seed: 284
+outer_splits: 5
+outer_repeats: 5
+inner_splits: 4
+bootstrap_resamples: 500
+test_policy: final_evaluation_only
+artifact_root: artifacts/runs
+tracking_uri: artifacts/mlflow.db
+workflow: configs/workflow.yaml
+teacher:
+  backend: tabpfn
+  fallback_backend: histgb
+  allow_fallback: false
+uncertainty:
+  abstention_fractions: [0.0, 0.05, 0.10, 0.20]
+  epsilon: 0.0001
+execution:
+  profile: full_primary_cpu
+  outer_repeats: 5
+  tabpfn_prediction_seeds: 4
+  tabdistill_repeats: 5
+  tabdistill_folds_per_repeat: 5
+  tabdistill_max_samples: 3
+  pysr_niterations: 100
